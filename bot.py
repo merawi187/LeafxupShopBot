@@ -178,16 +178,12 @@ def get_platforms_keyboard():
         kb.add(types.InlineKeyboardButton(text=name, callback_data=callback))
     return kb
 
-def get_genshin_keyboard():
-    kb = types.InlineKeyboardMarkup()
-    for item, price in GENSHIN_ITEMS:
-        kb.add(types.InlineKeyboardButton(text=f"{item} ({price}₽)", callback_data=f"genshin_{item}"))
-    return kb
-
 def get_items_keyboard(platform):
     kb = types.InlineKeyboardMarkup()
     for name, price in PLATFORM_ITEMS.get(platform, []):
-        kb.add(types.InlineKeyboardButton(text=f"{name} ({price}₽)", callback_data=f"item_{platform}_{name}"))
+        # Используем уникальный разделитель ||| для callback_data
+        callback_data = f"item|||{platform}|||{name}"
+        kb.add(types.InlineKeyboardButton(text=f"{name} ({price}₽)", callback_data=callback_data))
     return kb
 
 @bot.message_handler(commands=['start'])
@@ -195,30 +191,13 @@ def start_handler(message):
     user_states.pop(message.from_user.id, None)
     bot.send_message(message.chat.id, "Добро пожаловать! Выберите платформу для покупки услуги:", reply_markup=get_platforms_keyboard())
 
-@bot.callback_query_handler(func=lambda call: call.data == "genshin_price")
-def genshin_price_handler(call):
-    bot.send_message(call.message.chat.id, "Выберите товар Genshin Impact:", reply_markup=get_items_keyboard("genshin_price"))
-    bot.answer_callback_query(call.id)
-
-@bot.callback_query_handler(func=lambda call: call.data.endswith("_price_photo") or call.data in PLATFORM_PHOTOS)
-def send_platform_photo(call):
-    # Универсальный обработчик для всех прайсов по кнопкам
-    key = call.data.replace("_photo", "")
-    photo_info = PLATFORM_PHOTOS.get(key)
-    if photo_info:
-        filename, caption = photo_info
-        try:
-            with open(filename, "rb") as photo:
-                bot.send_photo(call.message.chat.id, photo, caption=caption)
-        except Exception as e:
-            bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса для {caption}. Обратитесь к менеджеру.")
-    else:
-        bot.send_message(call.message.chat.id, "Прайс-лист скоро будет доступен в виде фото!")
-    bot.answer_callback_query(call.id)
-
+# Универсальный обработчик для всех платформ
 @bot.callback_query_handler(func=lambda call: call.data in PLATFORM_PHOTOS)
-def platform_callback_handler_with_photo(call):
-    photo_info = PLATFORM_PHOTOS.get(call.data)
+def platform_handler(call):
+    platform = call.data
+    photo_info = PLATFORM_PHOTOS.get(platform)
+    
+    # Отправляем фото прайса
     if photo_info:
         filename, caption = photo_info
         try:
@@ -226,59 +205,87 @@ def platform_callback_handler_with_photo(call):
                 bot.send_photo(call.message.chat.id, photo, caption=caption)
         except Exception as e:
             bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса для {caption}. Обратитесь к менеджеру.")
-    # Genshin Impact: фото + клавиатура с товарами
-    if call.data == "genshin_price":
-        bot.send_message(call.message.chat.id, "Выберите товар Genshin Impact:", reply_markup=get_items_keyboard("genshin_price"))
-    # Genshin Locations: фото + клавиатура с позициями
-    elif call.data == "genshin_locations":
-        bot.send_message(call.message.chat.id, "Выберите позицию:", reply_markup=get_items_keyboard("genshin_locations"))
-    # Steam: фото + запрос логина
-    elif call.data == "steam":
+    
+    # Обрабатываем разные платформы
+    if platform == "steam":
+        # Steam: запрашиваем логин
         user_states[call.from_user.id] = {"state": "awaiting_steam_login"}
         bot.send_message(call.message.chat.id, "Пожалуйста, введите ваш логин Steam:")
-    # Остальные: фото + клавиатура с позициями
-    elif call.data in PLATFORM_ITEMS:
-        platform_name = dict(PLATFORMS)[call.data]
-        bot.send_message(call.message.chat.id, f"Выберите позицию {platform_name}:", reply_markup=get_items_keyboard(call.data))
+    else:
+        # Все остальные платформы: показываем кнопки с позициями
+        platform_name = dict(PLATFORMS)[platform]
+        bot.send_message(call.message.chat.id, f"Выберите позицию {platform_name}:", reply_markup=get_items_keyboard(platform))
+    
     bot.answer_callback_query(call.id)
 
 # Обработка выбора позиции для всех платформ (кроме Steam)
-@bot.callback_query_handler(func=lambda call: call.data.startswith("item_"))
+@bot.callback_query_handler(func=lambda call: call.data.startswith("item|||"))
 def item_selected_handler(call):
-    parts = call.data.split("_", 2)
-    platform = parts[1]
-    name = parts[2]
-    price = None
-    for n, p in PLATFORM_ITEMS.get(platform, []):
-        if n == name:
-            price = p
-            break
-    if price is not None:
-        kb = types.InlineKeyboardMarkup()
-        kb.add(types.InlineKeyboardButton(text="Подтвердить заказ", callback_data=f"confirm_{platform}_{name}"))
-        bot.send_message(call.message.chat.id, f"Вы выбрали: {name} ({price}₽). Подтвердите заказ:", reply_markup=kb)
-    else:
-        bot.send_message(call.message.chat.id, "Ошибка выбора позиции. Попробуйте снова.")
-    bot.answer_callback_query(call.id)
-
-# Обработка подтверждения заказа по позиции
-@bot.callback_query_handler(func=lambda call: call.data.startswith("confirm_"))
-def confirm_item_handler(call):
-    parts = call.data.split("_", 2)
-    platform = parts[1]
-    name = parts[2] if len(parts) > 2 else None
-    username = call.from_user.username or 'Без username'
-    if name:
+    try:
+        # Используем уникальный разделитель ||| для надежного парсинга
+        parts = call.data.split("|||")
+        if len(parts) != 3:
+            bot.send_message(call.message.chat.id, "Ошибка обработки выбора. Попробуйте снова.")
+            bot.answer_callback_query(call.id)
+            return
+            
+        platform = parts[1]
+        name = parts[2]
+        
+        # Находим цену для выбранной позиции
         price = None
         for n, p in PLATFORM_ITEMS.get(platform, []):
             if n == name:
                 price = p
                 break
-        text = f"[НОВЫЙ ЗАКАЗ]\nПлатформа: {dict(PLATFORMS).get(platform, platform)}\nПозиция: {name} ({price}₽)\nПользователь: @{username} ({call.from_user.id})"
-    else:
-        text = f"[НОВЫЙ ЗАКАЗ]\nПлатформа: {dict(PLATFORMS).get(platform, platform)}\nПользователь: @{username} ({call.from_user.id})"
-    bot.send_message(MANAGER_CHAT_ID, text)
-    bot.send_message(call.message.chat.id, "Спасибо за заказ! С вами свяжется менеджер для оплаты.")
+        
+        if price is not None:
+            # Создаем кнопку подтверждения с уникальным разделителем
+            kb = types.InlineKeyboardMarkup()
+            confirm_callback = f"confirm|||{platform}|||{name}"
+            kb.add(types.InlineKeyboardButton(text="Подтвердить заказ", callback_data=confirm_callback))
+            bot.send_message(call.message.chat.id, f"Вы выбрали: {name} ({price}₽). Подтвердите заказ:", reply_markup=kb)
+        else:
+            bot.send_message(call.message.chat.id, "Ошибка выбора позиции. Попробуйте снова.")
+    except Exception as e:
+        bot.send_message(call.message.chat.id, "Произошла ошибка при обработке выбора. Попробуйте снова.")
+    
+    bot.answer_callback_query(call.id)
+
+# Обработка подтверждения заказа
+@bot.callback_query_handler(func=lambda call: call.data.startswith("confirm|||"))
+def confirm_order_handler(call):
+    try:
+        # Парсим callback data с уникальным разделителем
+        parts = call.data.split("|||")
+        if len(parts) != 3:
+            bot.send_message(call.message.chat.id, "Ошибка обработки подтверждения. Попробуйте снова.")
+            bot.answer_callback_query(call.id)
+            return
+            
+        platform = parts[1]
+        name = parts[2]
+        
+        # Находим цену
+        price = None
+        for n, p in PLATFORM_ITEMS.get(platform, []):
+            if n == name:
+                price = p
+                break
+        
+        username = call.from_user.username or 'Без username'
+        platform_name = dict(PLATFORMS).get(platform, platform)
+        
+        # Отправляем заказ менеджеру
+        text = f"[НОВЫЙ ЗАКАЗ]\nПлатформа: {platform_name}\nПозиция: {name} ({price}₽)\nПользователь: @{username} ({call.from_user.id})"
+        bot.send_message(MANAGER_CHAT_ID, text)
+        
+        # Подтверждаем пользователю
+        bot.send_message(call.message.chat.id, "Спасибо за заказ! С вами свяжется менеджер для оплаты.")
+        
+    except Exception as e:
+        bot.send_message(call.message.chat.id, "Произошла ошибка при подтверждении заказа. Попробуйте снова.")
+    
     bot.answer_callback_query(call.id)
 
 # Steam: логин -> сумма с ограничением
@@ -311,22 +318,24 @@ def steam_amount_handler(message):
     except ValueError:
         bot.send_message(message.chat.id, "Пожалуйста, введите корректную сумму в рублях.")
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("confirm_"))
-def confirm_callback_handler(call):
-    platform = call.data.replace("confirm_", "")
-    username = call.from_user.username or 'Без username'
-    if platform == "steam":
+# Обработка подтверждения Steam заказа
+@bot.callback_query_handler(func=lambda call: call.data == "confirm_steam")
+def confirm_steam_handler(call):
+    try:
         data = user_states.get(call.from_user.id, {})
         login = data.get("login")
         amount = data.get("amount")
         commission = data.get("commission")
         total = data.get("total")
+        username = call.from_user.username or 'Без username'
+        
         text = f"[НОВЫЙ ЗАКАЗ]\nSteam\nЛогин: {login}\nСумма: {amount}₽\nКомиссия: {commission}₽\nИтого: {total}₽\nПользователь: @{username} ({call.from_user.id})"
-    else:
-        text = f"[НОВЫЙ ЗАКАЗ]\nПлатформа: {dict(PLATFORMS)[platform]}\nПользователь: @{username} ({call.from_user.id})"
-    bot.send_message(MANAGER_CHAT_ID, text)
-    bot.send_message(call.message.chat.id, "Спасибо за заказ! С вами свяжется менеджер для оплаты.")
-    user_states.pop(call.from_user.id, None)
+        bot.send_message(MANAGER_CHAT_ID, text)
+        bot.send_message(call.message.chat.id, "Спасибо за заказ! С вами свяжется менеджер для оплаты.")
+        user_states.pop(call.from_user.id, None)
+    except Exception as e:
+        bot.send_message(call.message.chat.id, "Произошла ошибка при подтверждении заказа. Попробуйте снова.")
+    
     bot.answer_callback_query(call.id)
 
 @bot.message_handler(func=lambda message: True)
@@ -334,7 +343,6 @@ def fallback_handler(message):
     bot.send_message(message.chat.id, "Пожалуйста, выберите платформу через меню /start.")
 
 # Flask-заглушка для Render
-
 def run_flask():
     app = Flask(__name__)
 
