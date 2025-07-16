@@ -88,15 +88,6 @@ def send_platform_photo(call):
         bot.send_message(call.message.chat.id, "Прайс-лист скоро будет доступен в виде фото!")
     bot.answer_callback_query(call.id)
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("genshin_"))
-def genshin_item_handler(call):
-    item = call.data.replace("genshin_", "")
-    for name, price in GENSHIN_ITEMS:
-        if item == name:
-            bot.send_message(call.message.chat.id, f"Вы выбрали: {name} ({price}₽). Для заказа напишите менеджеру или подтвердите заказ.")
-            break
-    bot.answer_callback_query(call.id)
-
 @bot.callback_query_handler(func=lambda call: call.data in PLATFORM_PHOTOS)
 def platform_callback_handler_with_photo(call):
     photo_info = PLATFORM_PHOTOS.get(call.data)
@@ -107,37 +98,53 @@ def platform_callback_handler_with_photo(call):
                 bot.send_photo(call.message.chat.id, photo, caption=caption)
         except Exception as e:
             bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса для {caption}. Обратитесь к менеджеру.")
-    # Дополнительно отправляем текстовое сообщение с предложением выбрать товар или подтвердить заказ
+    # Genshin Impact: фото + клавиатура с товарами
     if call.data == "genshin_price":
-        bot.send_message(call.message.chat.id, "Выберите товар Genshin Impact:")
-        bot.send_message(call.message.chat.id, '\n'.join([f'{item} — {price}₽' for item, price in GENSHIN_ITEMS]))
+        kb = types.InlineKeyboardMarkup()
+        for item, price in GENSHIN_ITEMS:
+            kb.add(types.InlineKeyboardButton(text=f"{item} ({price}₽)", callback_data=f"genshin_{item}"))
+        bot.send_message(call.message.chat.id, "Выберите товар Genshin Impact:", reply_markup=kb)
+    # Genshin Locations: фото + подтверждение
     elif call.data == "genshin_locations":
-        bot.send_message(call.message.chat.id, "Вы выбрали: Genshin Impact (закрытие локаций). Для заказа напишите менеджеру или подтвердите заказ.")
+        kb = types.InlineKeyboardMarkup()
+        kb.add(types.InlineKeyboardButton(text="Подтвердить заказ", callback_data="confirm_genshin_locations"))
+        bot.send_message(call.message.chat.id, "Вы выбрали: Genshin Impact (закрытие локаций). Подтвердите заказ:", reply_markup=kb)
+    # Steam: фото + запрос логина
     elif call.data == "steam":
         user_states[call.from_user.id] = {"state": "awaiting_steam_login"}
         bot.send_message(call.message.chat.id, "Пожалуйста, введите ваш логин Steam:")
-    elif call.data == "hsr_price":
-        bot.send_message(call.message.chat.id, "Вы выбрали: Honkai: Star Rail. Для заказа напишите менеджеру или подтвердите заказ.")
-    elif call.data == "zzz_price":
-        bot.send_message(call.message.chat.id, "Вы выбрали: Zenless Zone Zero. Для заказа напишите менеджеру или подтвердите заказ.")
-    elif call.data == "roblox_price":
-        bot.send_message(call.message.chat.id, "Вы выбрали: Roblox. Для заказа напишите менеджеру или подтвердите заказ.")
-    elif call.data == "clash_price":
-        bot.send_message(call.message.chat.id, "Вы выбрали: Clash Of Clans. Для заказа напишите менеджеру или подтвердите заказ.")
-    elif call.data == "brawl_price":
-        bot.send_message(call.message.chat.id, "Вы выбрали: Brawl Stars. Для заказа напишите менеджеру или подтвердите заказ.")
+    # Остальные: фото + подтверждение
+    elif call.data in ["hsr_price", "zzz_price", "roblox_price", "clash_price", "brawl_price"]:
+        kb = types.InlineKeyboardMarkup()
+        kb.add(types.InlineKeyboardButton(text="Подтвердить заказ", callback_data=f"confirm_{call.data}"))
+        platform_name = dict(PLATFORMS)[call.data]
+        bot.send_message(call.message.chat.id, f"Вы выбрали: {platform_name}. Подтвердите заказ:", reply_markup=kb)
     bot.answer_callback_query(call.id)
 
+# Genshin Impact: обработка выбора товара
+@bot.callback_query_handler(func=lambda call: call.data.startswith("genshin_"))
+def genshin_item_handler(call):
+    item = call.data.replace("genshin_", "")
+    for name, price in GENSHIN_ITEMS:
+        if item == name:
+            bot.send_message(call.message.chat.id, f"Вы выбрали: {name} ({price}₽). Для заказа напишите менеджеру или подтвердите заказ.")
+            break
+    bot.answer_callback_query(call.id)
+
+# Steam: логин -> сумма с ограничением
 @bot.message_handler(func=lambda message: user_states.get(message.from_user.id, {}).get("state") == "awaiting_steam_login")
 def steam_login_handler(message):
     login = message.text.strip()
     user_states[message.from_user.id] = {"state": "awaiting_steam_amount", "login": login}
-    bot.send_message(message.chat.id, "Введите сумму пополнения в рублях:")
+    bot.send_message(message.chat.id, "Введите сумму пополнения в рублях (от 100 до 25000):")
 
 @bot.message_handler(func=lambda message: user_states.get(message.from_user.id, {}).get("state") == "awaiting_steam_amount")
 def steam_amount_handler(message):
     try:
         amount = float(message.text.strip().replace(',', '.'))
+        if amount < 100 or amount > 25000:
+            bot.send_message(message.chat.id, "Сумма должна быть от 100 до 25000 рублей. Попробуйте снова.")
+            return
         commission = round(amount * 0.08, 2)
         total = round(amount + commission, 2)
         login = user_states[message.from_user.id]["login"]
