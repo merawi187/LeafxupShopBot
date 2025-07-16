@@ -2,6 +2,8 @@ import os
 import telebot
 from telebot import types
 from dotenv import load_dotenv
+import threading
+from flask import Flask
 
 load_dotenv()
 
@@ -9,6 +11,19 @@ BOT_TOKEN = os.getenv('BOT_TOKEN', 'YOUR_BOT_TOKEN')
 MANAGER_CHAT_ID = int(os.getenv('MANAGER_CHAT_ID', '0'))
 
 bot = telebot.TeleBot(BOT_TOKEN)
+
+# Товары Genshin Impact
+GENSHIN_ITEMS = [
+    ("Гимн", 700),
+    ("Хор", 1410),
+    ("Х65", 70),
+    ("Х300", 310),
+    ("Х980", 980),
+    ("Х1980", 1850),
+    ("Х3280", 2900),
+    ("Х6480", 5800),
+    ("Карточка", 310)
+]
 
 PLATFORMS = [
     ("genshin_price", "💎 Genshin Impact (прайс)"),
@@ -23,11 +38,28 @@ PLATFORMS = [
 
 user_states = {}
 
-# Клавиатура выбора платформы
+PLATFORM_PHOTOS = {
+    "genshin_price": ("genshin_price.jpg", "Прайс-лист Genshin Impact"),
+    "genshin_locations": ("genshin_locations.jpg", "Прайс-лист Genshin Impact (закрытие локаций)"),
+    "steam": ("steam.jpg", "Прайс-лист Steam"),
+    "hsr_price": ("honkai_price.jpg", "Прайс-лист Honkai: Star Rail"),
+    "zzz_price": ("zzz_price.jpg", "Прайс-лист Zenless Zone Zero"),
+    "roblox_price": ("roblox_price.jpg", "Прайс-лист Roblox"),
+    "clash_price": ("coc_price.jpg", "Прайс-лист Clash Of Clans"),
+    "brawl_price": ("bs_price.jpg", "Прайс-лист Brawl Stars"),
+}
+
 def get_platforms_keyboard():
     kb = types.InlineKeyboardMarkup()
     for callback, name in PLATFORMS:
         kb.add(types.InlineKeyboardButton(text=name, callback_data=callback))
+    return kb
+
+def get_genshin_keyboard():
+    kb = types.InlineKeyboardMarkup()
+    for item, price in GENSHIN_ITEMS:
+        kb.add(types.InlineKeyboardButton(text=f"{item} ({price}₽)", callback_data=f"genshin_{item}"))
+    kb.add(types.InlineKeyboardButton(text="Показать прайс-лист", callback_data="genshin_price_photo"))
     return kb
 
 @bot.message_handler(commands=['start'])
@@ -35,7 +67,37 @@ def start_handler(message):
     user_states.pop(message.from_user.id, None)
     bot.send_message(message.chat.id, "Добро пожаловать! Выберите платформу для покупки услуги:", reply_markup=get_platforms_keyboard())
 
-@bot.callback_query_handler(func=lambda call: call.data in [p[0] for p in PLATFORMS])
+@bot.callback_query_handler(func=lambda call: call.data == "genshin_price")
+def genshin_price_handler(call):
+    bot.send_message(call.message.chat.id, "Выберите товар Genshin Impact:", reply_markup=get_genshin_keyboard())
+    bot.answer_callback_query(call.id)
+
+@bot.callback_query_handler(func=lambda call: call.data.endswith("_price_photo") or call.data in PLATFORM_PHOTOS)
+def send_platform_photo(call):
+    # Универсальный обработчик для всех прайсов по кнопкам
+    key = call.data.replace("_photo", "")
+    photo_info = PLATFORM_PHOTOS.get(key)
+    if photo_info:
+        filename, caption = photo_info
+        try:
+            with open(filename, "rb") as photo:
+                bot.send_photo(call.message.chat.id, photo, caption=caption)
+        except Exception as e:
+            bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса для {caption}. Обратитесь к менеджеру.")
+    else:
+        bot.send_message(call.message.chat.id, "Прайс-лист скоро будет доступен в виде фото!")
+    bot.answer_callback_query(call.id)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("genshin_"))
+def genshin_item_handler(call):
+    item = call.data.replace("genshin_", "")
+    for name, price in GENSHIN_ITEMS:
+        if item == name:
+            bot.send_message(call.message.chat.id, f"Вы выбрали: {name} ({price}₽). Для заказа напишите менеджеру или подтвердите заказ.")
+            break
+    bot.answer_callback_query(call.id)
+
+@bot.callback_query_handler(func=lambda call: call.data in [p[0] for p in PLATFORMS if p[0] != "genshin_price"])
 def platform_callback_handler(call):
     if call.data == "steam":
         user_states[call.from_user.id] = {"state": "awaiting_steam_login"}
@@ -95,5 +157,20 @@ def confirm_callback_handler(call):
 def fallback_handler(message):
     bot.send_message(message.chat.id, "Пожалуйста, выберите платформу через меню /start.")
 
+# Flask-заглушка для Render
+
+def run_flask():
+    app = Flask(__name__)
+
+    @app.route('/')
+    def index():
+        return "OK"
+
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
+
 if __name__ == "__main__":
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
     bot.polling(none_stop=True) 
