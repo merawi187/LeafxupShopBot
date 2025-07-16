@@ -141,6 +141,37 @@ PLATFORM_TEXTS = {
     ),
 }
 
+# --- Кнопки для позиций по платформам ---
+PLATFORM_ITEMS = {
+    "genshin_price": [
+        ("Гимн", 700), ("Хор", 1410), ("Х65", 70), ("Х300", 310), ("Х980", 980), ("Х1980", 1850), ("Х3280", 2900), ("Х6480", 5800), ("Карточка", 310)
+    ],
+    "genshin_locations": [
+        ("Мондштадт (100%)", 850), ("Драконий хребет (100%)", 700), ("Мондштадт/Драконий хребет (100%)", 1300),
+        ("Ли Юэ (100%)", 2300), ("Разлом (100%)", 1000), ("Ли Юэ/Разлом (100%)", 3300), ("Долина Чэньюй (100%)", 2200),
+        ("Инадзума (100%)", 2000), ("Энканомия (100%)", 1200), ("Инадзума/Энканомия (100%)", 3200),
+        ("Сумеру (100%)", 2200), ("Пустыня Колоннад (100%)", 1350), ("Пустыня Хадрамавет (100%)", 1800), ("Царство Фаракхерт (100%)", 1200), ("Все пустыни Сумеру (100%)", 4350), ("Сумеру тропики и пустыня (100%)", 6500),
+        ("Кур Де Фонтейн (100%)", 1800), ("Институт Фонтейна (100%)", 1700), ("Лес Эриний (100%)", 2100), ("Древнее Море (100%)", 1300), ("Весь Фонтейн (100%)", 6400),
+        ("Натлан 5.0 (100%)", 3000), ("Очканатлан (100%)", 1800), ("Натлан 5.5 (100%)", 2250),
+        ("Квест Аранар", 1800), ("Уход за аккаунтом (месяц)", 3000)
+    ],
+    "hsr_price": [
+        ("Слава безымянных", 800), ("Честь безымянных", 1600), ("Х300", 350), ("Х980", 1380), ("Х1980", 2150), ("Х3280", 3510), ("Х6480", 7050), ("Календарь", 350)
+    ],
+    "zzz_price": [
+        ("Фонд Риду продвинутый", 810), ("Фонд Риду премиальный", 1610), ("Х300", 355), ("Х980", 1110), ("Х1980", 2180), ("Х3280", 3650), ("Х6480", 7100), ("Набор", 355)
+    ],
+    "roblox_price": [
+        ("Х500", 470), ("Х1000", 910), ("Х2000", 1810), ("Х5250", 4400), ("Х11000", 8800), ("Х24000", 18000)
+    ],
+    "clash_price": [
+        ("Пасс рояль", 94), ("Х500", 395), ("Х1200", 795), ("Х2500", 1590), ("Х6500", 3985), ("Х14000", 7995), ("Х80", 75)
+    ],
+    "brawl_price": [
+        ("Бравл Пасс", 500), ("Улучшение до плюс", 315), ("Бравл Пасс плюс", 770), ("Х30", 155), ("Х80", 385), ("Х170", 780), ("Х360", 1580), ("Х950", 3900), ("Х2000", 7800)
+    ]
+}
+
 def get_platforms_keyboard():
     kb = types.InlineKeyboardMarkup()
     for callback, name in PLATFORMS:
@@ -153,6 +184,12 @@ def get_genshin_keyboard():
         kb.add(types.InlineKeyboardButton(text=f"{item} ({price}₽)", callback_data=f"genshin_{item}"))
     return kb
 
+def get_items_keyboard(platform):
+    kb = types.InlineKeyboardMarkup()
+    for name, price in PLATFORM_ITEMS.get(platform, []):
+        kb.add(types.InlineKeyboardButton(text=f"{name} ({price}₽)", callback_data=f"item_{platform}_{name}"))
+    return kb
+
 @bot.message_handler(commands=['start'])
 def start_handler(message):
     user_states.pop(message.from_user.id, None)
@@ -160,7 +197,7 @@ def start_handler(message):
 
 @bot.callback_query_handler(func=lambda call: call.data == "genshin_price")
 def genshin_price_handler(call):
-    bot.send_message(call.message.chat.id, "Выберите товар Genshin Impact:", reply_markup=get_genshin_keyboard())
+    bot.send_message(call.message.chat.id, "Выберите товар Genshin Impact:", reply_markup=get_items_keyboard("genshin_price"))
     bot.answer_callback_query(call.id)
 
 @bot.callback_query_handler(func=lambda call: call.data.endswith("_price_photo") or call.data in PLATFORM_PHOTOS)
@@ -191,34 +228,57 @@ def platform_callback_handler_with_photo(call):
             bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса для {caption}. Обратитесь к менеджеру.")
     # Genshin Impact: фото + клавиатура с товарами
     if call.data == "genshin_price":
-        bot.send_message(call.message.chat.id, "Выберите товар Genshin Impact:", reply_markup=get_genshin_keyboard())
-    # Genshin Locations: фото + текст + подтверждение
+        bot.send_message(call.message.chat.id, "Выберите товар Genshin Impact:", reply_markup=get_items_keyboard("genshin_price"))
+    # Genshin Locations: фото + клавиатура с позициями
     elif call.data == "genshin_locations":
-        bot.send_message(call.message.chat.id, PLATFORM_TEXTS["genshin_locations"])
-        kb = types.InlineKeyboardMarkup()
-        kb.add(types.InlineKeyboardButton(text="Подтвердить заказ", callback_data="confirm_genshin_locations"))
-        bot.send_message(call.message.chat.id, "Вы выбрали: Genshin Impact (закрытие локаций). Подтвердите заказ:", reply_markup=kb)
+        bot.send_message(call.message.chat.id, "Выберите позицию:", reply_markup=get_items_keyboard("genshin_locations"))
     # Steam: фото + запрос логина
     elif call.data == "steam":
         user_states[call.from_user.id] = {"state": "awaiting_steam_login"}
         bot.send_message(call.message.chat.id, "Пожалуйста, введите ваш логин Steam:")
-    # Остальные: фото + текст + подтверждение
-    elif call.data in PLATFORM_TEXTS:
-        bot.send_message(call.message.chat.id, PLATFORM_TEXTS[call.data])
-        kb = types.InlineKeyboardMarkup()
-        kb.add(types.InlineKeyboardButton(text="Подтвердить заказ", callback_data=f"confirm_{call.data}"))
+    # Остальные: фото + клавиатура с позициями
+    elif call.data in PLATFORM_ITEMS:
         platform_name = dict(PLATFORMS)[call.data]
-        bot.send_message(call.message.chat.id, f"Вы выбрали: {platform_name}. Подтвердите заказ:", reply_markup=kb)
+        bot.send_message(call.message.chat.id, f"Выберите позицию {platform_name}:", reply_markup=get_items_keyboard(call.data))
     bot.answer_callback_query(call.id)
 
-# Genshin Impact: обработка выбора товара
-@bot.callback_query_handler(func=lambda call: call.data.startswith("genshin_"))
-def genshin_item_handler(call):
-    item = call.data.replace("genshin_", "")
-    for name, price in GENSHIN_ITEMS:
-        if item == name:
-            bot.send_message(call.message.chat.id, f"Вы выбрали: {name} ({price}₽). Для заказа напишите менеджеру или подтвердите заказ.")
+# Обработка выбора позиции для всех платформ (кроме Steam)
+@bot.callback_query_handler(func=lambda call: call.data.startswith("item_"))
+def item_selected_handler(call):
+    parts = call.data.split("_", 2)
+    platform = parts[1]
+    name = parts[2]
+    price = None
+    for n, p in PLATFORM_ITEMS.get(platform, []):
+        if n == name:
+            price = p
             break
+    if price is not None:
+        kb = types.InlineKeyboardMarkup()
+        kb.add(types.InlineKeyboardButton(text="Подтвердить заказ", callback_data=f"confirm_{platform}_{name}"))
+        bot.send_message(call.message.chat.id, f"Вы выбрали: {name} ({price}₽). Подтвердите заказ:", reply_markup=kb)
+    else:
+        bot.send_message(call.message.chat.id, "Ошибка выбора позиции. Попробуйте снова.")
+    bot.answer_callback_query(call.id)
+
+# Обработка подтверждения заказа по позиции
+@bot.callback_query_handler(func=lambda call: call.data.startswith("confirm_"))
+def confirm_item_handler(call):
+    parts = call.data.split("_", 2)
+    platform = parts[1]
+    name = parts[2] if len(parts) > 2 else None
+    username = call.from_user.username or 'Без username'
+    if name:
+        price = None
+        for n, p in PLATFORM_ITEMS.get(platform, []):
+            if n == name:
+                price = p
+                break
+        text = f"[НОВЫЙ ЗАКАЗ]\nПлатформа: {dict(PLATFORMS).get(platform, platform)}\nПозиция: {name} ({price}₽)\nПользователь: @{username} ({call.from_user.id})"
+    else:
+        text = f"[НОВЫЙ ЗАКАЗ]\nПлатформа: {dict(PLATFORMS).get(platform, platform)}\nПользователь: @{username} ({call.from_user.id})"
+    bot.send_message(MANAGER_CHAT_ID, text)
+    bot.send_message(call.message.chat.id, "Спасибо за заказ! С вами свяжется менеджер для оплаты.")
     bot.answer_callback_query(call.id)
 
 # Steam: логин -> сумма с ограничением
