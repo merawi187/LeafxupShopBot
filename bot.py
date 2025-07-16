@@ -180,10 +180,13 @@ def get_platforms_keyboard():
 
 def get_items_keyboard(platform):
     kb = types.InlineKeyboardMarkup()
-    for name, price in PLATFORM_ITEMS.get(platform, []):
+    items = PLATFORM_ITEMS.get(platform, [])
+    print(f"DEBUG: Создание клавиатуры для {platform}, найдено {len(items)} позиций")
+    for name, price in items:
         # Используем уникальный разделитель ||| для callback_data
         callback_data = f"item|||{platform}|||{name}"
         kb.add(types.InlineKeyboardButton(text=f"{name} ({price}₽)", callback_data=callback_data))
+        print(f"DEBUG: Добавлена кнопка: {name} ({price}₽)")
     return kb
 
 @bot.message_handler(commands=['start'])
@@ -191,11 +194,15 @@ def start_handler(message):
     user_states.pop(message.from_user.id, None)
     bot.send_message(message.chat.id, "Добро пожаловать! Выберите платформу для покупки услуги:", reply_markup=get_platforms_keyboard())
 
+
+
 # Универсальный обработчик для всех платформ
 @bot.callback_query_handler(func=lambda call: call.data in PLATFORM_PHOTOS)
 def platform_handler(call):
     platform = call.data
     photo_info = PLATFORM_PHOTOS.get(platform)
+    
+    print(f"DEBUG: Обработка платформы {platform}")
     
     # Отправляем фото прайса
     if photo_info:
@@ -203,7 +210,9 @@ def platform_handler(call):
         try:
             with open(filename, "rb") as photo:
                 bot.send_photo(call.message.chat.id, photo, caption=caption)
+                print(f"DEBUG: Фото отправлено для {platform}")
         except Exception as e:
+            print(f"DEBUG: Ошибка отправки фото: {e}")
             bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса для {caption}. Обратитесь к менеджеру.")
     
     # Обрабатываем разные платформы
@@ -211,10 +220,16 @@ def platform_handler(call):
         # Steam: запрашиваем логин
         user_states[call.from_user.id] = {"state": "awaiting_steam_login"}
         bot.send_message(call.message.chat.id, "Пожалуйста, введите ваш логин Steam:")
+        print(f"DEBUG: Steam - запрос логина")
     else:
         # Все остальные платформы: показываем кнопки с позициями
         platform_name = dict(PLATFORMS)[platform]
+        print(f"DEBUG: Отправка кнопок для {platform}")
+        # Добавляем небольшую задержку для надежности
+        import time
+        time.sleep(0.5)
         bot.send_message(call.message.chat.id, f"Выберите позицию {platform_name}:", reply_markup=get_items_keyboard(platform))
+        print(f"DEBUG: Кнопки отправлены для {platform}")
     
     bot.answer_callback_query(call.id)
 
@@ -341,6 +356,12 @@ def confirm_steam_handler(call):
 @bot.message_handler(func=lambda message: True)
 def fallback_handler(message):
     bot.send_message(message.chat.id, "Пожалуйста, выберите платформу через меню /start.")
+
+# Отладочный обработчик для всех callback-запросов (должен быть последним)
+@bot.callback_query_handler(func=lambda call: True)
+def debug_callback_handler(call):
+    print(f"DEBUG: Необработанный callback: {call.data}")
+    # Не отвечаем на callback, чтобы не мешать другим обработчикам
 
 # Flask-заглушка для Render
 def run_flask():
