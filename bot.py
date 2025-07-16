@@ -3,6 +3,8 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 import os
+import threading
+from flask import Flask
 
 # Замените на свой токен
 BOT_TOKEN = os.getenv('BOT_TOKEN', 'YOUR_BOT_TOKEN')
@@ -80,6 +82,16 @@ async def confirm_callback_handler(callback: CallbackQuery):
         await callback.answer()
         await callback.message.bot.session.storage.set_data(callback.from_user.id, {})
 
+def run_flask():
+    app = Flask(__name__)
+
+    @app.route('/')
+    def index():
+        return "OK"
+
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
+
 async def main():
     bot = Bot(BOT_TOKEN, parse_mode="HTML")
     dp = Dispatcher()
@@ -102,4 +114,7 @@ async def main():
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
     asyncio.run(main()) 
