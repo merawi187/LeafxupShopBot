@@ -97,16 +97,35 @@ def genshin_item_handler(call):
             break
     bot.answer_callback_query(call.id)
 
-@bot.callback_query_handler(func=lambda call: call.data in [p[0] for p in PLATFORMS if p[0] != "genshin_price"])
-def platform_callback_handler(call):
-    if call.data == "steam":
+@bot.callback_query_handler(func=lambda call: call.data in PLATFORM_PHOTOS)
+def platform_callback_handler_with_photo(call):
+    photo_info = PLATFORM_PHOTOS.get(call.data)
+    if photo_info:
+        filename, caption = photo_info
+        try:
+            with open(filename, "rb") as photo:
+                bot.send_photo(call.message.chat.id, photo, caption=caption)
+        except Exception as e:
+            bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса для {caption}. Обратитесь к менеджеру.")
+    # Дополнительно отправляем текстовое сообщение с предложением выбрать товар или подтвердить заказ
+    if call.data == "genshin_price":
+        bot.send_message(call.message.chat.id, "Выберите товар Genshin Impact:")
+        bot.send_message(call.message.chat.id, '\n'.join([f'{item} — {price}₽' for item, price in GENSHIN_ITEMS]))
+    elif call.data == "genshin_locations":
+        bot.send_message(call.message.chat.id, "Вы выбрали: Genshin Impact (закрытие локаций). Для заказа напишите менеджеру или подтвердите заказ.")
+    elif call.data == "steam":
         user_states[call.from_user.id] = {"state": "awaiting_steam_login"}
         bot.send_message(call.message.chat.id, "Пожалуйста, введите ваш логин Steam:")
-    else:
-        user_states[call.from_user.id] = {"state": f"confirm_{call.data}"}
-        kb = types.InlineKeyboardMarkup()
-        kb.add(types.InlineKeyboardButton(text="Подтвердить", callback_data=f"confirm_{call.data}"))
-        bot.send_message(call.message.chat.id, f"Вы выбрали: {dict(PLATFORMS)[call.data]}\n\nПодтвердите заказ?", reply_markup=kb)
+    elif call.data == "hsr_price":
+        bot.send_message(call.message.chat.id, "Вы выбрали: Honkai: Star Rail. Для заказа напишите менеджеру или подтвердите заказ.")
+    elif call.data == "zzz_price":
+        bot.send_message(call.message.chat.id, "Вы выбрали: Zenless Zone Zero. Для заказа напишите менеджеру или подтвердите заказ.")
+    elif call.data == "roblox_price":
+        bot.send_message(call.message.chat.id, "Вы выбрали: Roblox. Для заказа напишите менеджеру или подтвердите заказ.")
+    elif call.data == "clash_price":
+        bot.send_message(call.message.chat.id, "Вы выбрали: Clash Of Clans. Для заказа напишите менеджеру или подтвердите заказ.")
+    elif call.data == "brawl_price":
+        bot.send_message(call.message.chat.id, "Вы выбрали: Brawl Stars. Для заказа напишите менеджеру или подтвердите заказ.")
     bot.answer_callback_query(call.id)
 
 @bot.message_handler(func=lambda message: user_states.get(message.from_user.id, {}).get("state") == "awaiting_steam_login")
