@@ -320,7 +320,7 @@ def broadcast_send(message):
     broadcast_state.pop(message.from_user.id, None)
 
 # --- Сбор user_id для рассылки ---
-@bot.message_handler(func=lambda m: m.text and not m.text.startswith('/'))
+@bot.message_handler(func=lambda m: True)
 def collect_user(message):
     ALL_USERS.add(message.from_user.id)
     save_users()
@@ -353,8 +353,9 @@ def get_items_keyboard(platform):
     for idx, (name, value) in enumerate(items):
         if isinstance(value, int):
             key = f"{platform}_{idx}"
+            price = get_price(platform, idx)
             callback_data = f"item|||{key}"
-            kb.add(types.InlineKeyboardButton(text=f"{name} ({value}₽)", callback_data=callback_data))
+            kb.add(types.InlineKeyboardButton(text=f"{name} ({price}₽)", callback_data=callback_data))
     kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_platforms"))
     return kb
 
@@ -376,8 +377,9 @@ def get_location_items_keyboard(region_code):
     items = LOCATION_ITEMS.get(region_code, [])
     for idx, (name, price) in enumerate(items):
         key = f"{region_code}_{idx}"
+        actual_price = get_price('genshin_locations', idx, region_code)
         kb.add(types.InlineKeyboardButton(
-            text=f"{name} - {price}₽",
+            text=f"{name} - {actual_price}₽",
             callback_data=f"item|||{key}"
         ))
     kb.add(types.InlineKeyboardButton(
