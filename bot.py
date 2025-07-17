@@ -158,12 +158,10 @@ def add_user(user_id):
     conn.close()
 
 def get_all_users():
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('SELECT user_id FROM users')
-    users = [row[0] for row in c.fetchall()]
-    conn.close()
-    return users
+    # Для примера: все, кто когда-либо взаимодействовал с ботом (можно доработать под вашу БД)
+    # Здесь просто возвращаем список из памяти, если хотите — подключите свою БД
+    # Например, можно хранить user_id в user_states
+    return list(user_states.keys())
 
 # --- Работа с ценами ---
 # Удаляю функции set_price_db, get_price_db, set_price, get_price, price_change_state и все message_handler с setprice
@@ -335,7 +333,9 @@ def platform_handler(call):
     photo_info = PLATFORM_PHOTOS.get(platform)
     if platform == "steam":
         user_states[call.from_user.id] = {"state": "awaiting_steam_login"}
-        msg = bot.send_message(call.message.chat.id, "Пожалуйста, введите ваш логин Steam:")
+        kb = types.InlineKeyboardMarkup()
+        kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_platforms"))
+        msg = bot.send_message(call.message.chat.id, "Пожалуйста, введите ваш логин Steam:", reply_markup=kb)
         add_message_to_delete(call.message.chat.id, msg.message_id)
     elif photo_info:
         filename, caption = photo_info
@@ -407,6 +407,7 @@ def item_selected_handler(call):
     add_user(call.from_user.id)
     clean_previous_messages(call.message.chat.id)
     key = call.data.split("|||")[1]
+    # Проверяем, к какой категории относится ключ
     if key in LOCATION_ITEM_KEYS:
         region_code, name, _ = LOCATION_ITEM_KEYS[key]
         platform = "genshin_locations"
@@ -415,10 +416,10 @@ def item_selected_handler(call):
             items = LOCATION_ITEMS[region_code]
             if idx < 0 or idx >= len(items):
                 raise IndexError
+            price = items[idx][1]
         except (IndexError, ValueError, KeyError):
             bot.answer_callback_query(call.id, "Ошибка позиции")
             return
-        price = items[idx][1] # Возвращаю цену напрямую
     elif key in PLATFORM_ITEM_KEYS:
         platform, name, _ = PLATFORM_ITEM_KEYS[key]
         try:
@@ -426,10 +427,10 @@ def item_selected_handler(call):
             items = PLATFORM_ITEMS[platform]
             if idx < 0 or idx >= len(items):
                 raise IndexError
+            price = items[idx][1]
         except (IndexError, ValueError, KeyError):
             bot.answer_callback_query(call.id, "Ошибка позиции")
             return
-        price = items[idx][1] # Возвращаю цену напрямую
     else:
         bot.answer_callback_query(call.id, "Товар не найден")
         return
@@ -507,7 +508,12 @@ def back_to_steam_handler(call):
     try:
         user_states.pop(call.from_user.id, None)
         clean_previous_messages(call.message.chat.id)
-        platform_handler(call)
+        # Повторно показать окно ввода логина Steam с кнопкой назад
+        user_states[call.from_user.id] = {"state": "awaiting_steam_login"}
+        kb = types.InlineKeyboardMarkup()
+        kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_platforms"))
+        msg = bot.send_message(call.message.chat.id, "Пожалуйста, введите ваш логин Steam:", reply_markup=kb)
+        add_message_to_delete(call.message.chat.id, msg.message_id)
     except Exception as e:
         print(f"Error in back_to_steam_handler: {e}")
         bot.answer_callback_query(call.id, "Ошибка возврата. Попробуйте снова.")
