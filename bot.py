@@ -5,6 +5,9 @@ from dotenv import load_dotenv
 import time
 import json
 
+PRICES_FILE = 'prices.json'
+USERS_FILE = 'users.json'
+
 load_dotenv()
 
 BOT_TOKEN = os.getenv('BOT_TOKEN', 'YOUR_BOT_TOKEN')
@@ -164,7 +167,7 @@ for platform, items in PLATFORM_ITEMS.items():
         PLATFORM_ITEM_KEYS[key] = (platform, name, price)
 
 # --- Админские ID (замените на свои) ---
-ADMIN_IDS = [526427613, 5174082916]  # Пример, замените на реальные Telegram user_id
+ADMIN_IDS = [123456789, 987654321]  # Пример, замените на реальные Telegram user_id
 
 # --- Для хранения изменённых цен (в памяти) ---
 MODIFIED_PRICES = {}
