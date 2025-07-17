@@ -4,6 +4,7 @@ from telebot import types
 from dotenv import load_dotenv
 import time
 import json
+import sqlite3
 
 PRICES_FILE = 'prices.json'
 USERS_FILE = 'users.json'
@@ -172,6 +173,54 @@ ADMIN_IDS = [526427613, 5174082916]  # Пример, замените на ре�
 # --- Для хранения изменённых цен (в памяти) ---
 MODIFIED_PRICES = {}
 
+# --- Инициализация базы данных ---
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute('CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY)')
+    c.execute('''CREATE TABLE IF NOT EXISTS prices (
+        key TEXT PRIMARY KEY,
+        price INTEGER
+    )''')
+    conn.commit()
+    conn.close()
+
+init_db()
+
+# --- Работа с пользователями ---
+def add_user(user_id):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute('INSERT OR IGNORE INTO users (user_id) VALUES (?)', (user_id,))
+    conn.commit()
+    conn.close()
+
+def get_all_users():
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute('SELECT user_id FROM users')
+    users = [row[0] for row in c.fetchall()]
+    conn.close()
+    return users
+
+# --- Работа с ценами ---
+def set_price_db(key, price):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute('INSERT OR REPLACE INTO prices (key, price) VALUES (?, ?)', (key, price))
+    conn.commit()
+    conn.close()
+
+def get_price_db(key):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute('SELECT price FROM prices WHERE key = ?', (key,))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        return row[0]
+    return None
+
 # --- Вспомогательные функции ---
 def is_admin(user_id):
     return user_id in ADMIN_IDS
@@ -179,19 +228,24 @@ def is_admin(user_id):
 def get_price(platform, idx, region_code=None):
     if platform == 'genshin_locations' and region_code is not None:
         key = f"{region_code}_{idx}"
-        return MODIFIED_PRICES.get(key) or LOCATION_ITEMS[region_code][idx][1]
+        db_price = get_price_db(key)
+        if db_price is not None:
+            return db_price
+        return LOCATION_ITEMS[region_code][idx][1]
     else:
         key = f"{platform}_{idx}"
-        return MODIFIED_PRICES.get(key) or PLATFORM_ITEMS[platform][idx][1]
+        db_price = get_price_db(key)
+        if db_price is not None:
+            return db_price
+        return PLATFORM_ITEMS[platform][idx][1]
 
 def set_price(platform, idx, new_price, region_code=None):
     if platform == 'genshin_locations' and region_code is not None:
         key = f"{region_code}_{idx}"
-        MODIFIED_PRICES[key] = new_price
+        set_price_db(key, new_price)
     else:
         key = f"{platform}_{idx}"
-        MODIFIED_PRICES[key] = new_price
-    save_prices()
+        set_price_db(key, new_price)
 
 # --- FSM для смены цены ---
 price_change_state = {}
@@ -310,7 +364,7 @@ def broadcast_send(message):
         return
     text = message.text
     count = 0
-    for user_id in ALL_USERS:
+    for user_id in get_all_users():
         try:
             bot.send_message(user_id, text)
             count += 1
@@ -322,8 +376,7 @@ def broadcast_send(message):
 # --- Сбор user_id для рассылки ---
 @bot.message_handler(func=lambda m: True)
 def collect_user(message):
-    ALL_USERS.add(message.from_user.id)
-    save_users()
+    add_user(message.from_user.id)
 
 def clean_previous_messages(chat_id):
     """Удаляет все предыдущие сообщения бота в чате"""
@@ -486,15 +539,16 @@ def back_to_platforms_handler(call):
 def item_selected_handler(call):
     clean_previous_messages(call.message.chat.id)
     key = call.data.split("|||")[1]
-    print(f"[DEBUG] Выбран ключ товара: {key}")
-    # Проверяем, к какой категории относится ключ
     if key in LOCATION_ITEM_KEYS:
-        region_code, name, price = LOCATION_ITEM_KEYS[key]
+        region_code, name, _ = LOCATION_ITEM_KEYS[key]
         platform = "genshin_locations"
+        idx = int(key.split('_')[1])
+        price = get_price(platform, idx, region_code)
     elif key in PLATFORM_ITEM_KEYS:
-        platform, name, price = PLATFORM_ITEM_KEYS[key]
+        platform, name, _ = PLATFORM_ITEM_KEYS[key]
+        idx = int(key.split('_')[1])
+        price = get_price(platform, idx)
     else:
-        print(f"[DEBUG] Неизвестный ключ товара: {key}")
         bot.answer_callback_query(call.id, "Товар не найден")
         return
     kb = types.InlineKeyboardMarkup()
@@ -502,7 +556,6 @@ def item_selected_handler(call):
         text="✅ Подтвердить заказ",
         callback_data=f"confirm|||{key}"
     ))
-    # Кнопка назад
     if platform == "genshin_locations":
         kb.add(types.InlineKeyboardButton(
             text="◀️ Назад",
@@ -528,21 +581,22 @@ def item_selected_handler(call):
 def confirm_order_handler(call):
     clean_previous_messages(call.message.chat.id)
     key = call.data.split("|||")[1]
-    # Проверяем, к какой категории относится ключ
     if key in LOCATION_ITEM_KEYS:
-        region_code, name, price = LOCATION_ITEM_KEYS[key]
+        region_code, name, _ = LOCATION_ITEM_KEYS[key]
         platform = "genshin_locations"
+        idx = int(key.split('_')[1])
+        price = get_price(platform, idx, region_code)
     elif key in PLATFORM_ITEM_KEYS:
-        platform, name, price = PLATFORM_ITEM_KEYS[key]
+        platform, name, _ = PLATFORM_ITEM_KEYS[key]
+        idx = int(key.split('_')[1])
+        price = get_price(platform, idx)
     else:
         bot.answer_callback_query(call.id, "Ошибка при подтверждении заказа")
         return
     username = call.from_user.username or 'Без username'
     platform_name = dict(PLATFORMS).get(platform, platform)
-    # Отправляем уведомление менеджеру
     text = f"[НОВЫЙ ЗАКАЗ]\nПлатформа: {platform_name}\nПозиция: {name} ({price}₽)\nПользователь: @{username} ({call.from_user.id})"
     bot.send_message(MANAGER_CHAT_ID, text)
-    # Отправляем подтверждение пользователю
     msg = bot.send_message(
         call.message.chat.id,
         f"✅ Заказ подтвержден!\n\n{name} ({price}₽)\n\nС вами свяжется менеджер для оплаты."
@@ -631,35 +685,54 @@ def confirm_steam_handler(call):
         print(f"Error in confirm_steam_handler: {e}")
         bot.answer_callback_query(call.id, "Ошибка при подтверждении заказа")
 
-# --- Функции для сохранения/загрузки цен ---
-def save_prices():
-    with open(PRICES_FILE, 'w', encoding='utf-8') as f:
-        json.dump(MODIFIED_PRICES, f, ensure_ascii=False)
+@bot.message_handler(commands=['users'])
+def show_users(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "Нет доступа.")
+        return
+    users = get_all_users()
+    if not users:
+        bot.send_message(message.chat.id, "Список пользователей пуст.")
+        return
+    text = 'Пользователи (user_id):\n' + '\n'.join(str(u) for u in users)
+    bot.send_message(message.chat.id, text)
 
-def load_prices():
-    global MODIFIED_PRICES
+@bot.message_handler(commands=['adduser'])
+def add_user_cmd(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "Нет доступа.")
+        return
     try:
-        with open(PRICES_FILE, 'r', encoding='utf-8') as f:
-            MODIFIED_PRICES = json.load(f)
+        user_id = int(message.text.split()[1])
+        add_user(user_id)
+        bot.send_message(message.chat.id, f"Пользователь {user_id} добавлен.")
     except Exception:
-        MODIFIED_PRICES = {}
+        bot.send_message(message.chat.id, "Используйте: /adduser <user_id>")
+
+@bot.message_handler(commands=['deluser'])
+def del_user_cmd(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "Нет доступа.")
+        return
+    try:
+        user_id = int(message.text.split()[1])
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        c.execute('DELETE FROM users WHERE user_id = ?', (user_id,))
+        conn.commit()
+        conn.close()
+        bot.send_message(message.chat.id, f"Пользователь {user_id} удалён.")
+    except Exception:
+        bot.send_message(message.chat.id, "Используйте: /deluser <user_id>")
+
+# --- Функции для сохранения/загрузки цен ---
+# Удаляю функции save_prices, load_prices и все обращения к ним
 
 # --- Функции для сохранения/загрузки пользователей ---
-def save_users():
-    with open(USERS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(list(ALL_USERS), f)
-
-def load_users():
-    global ALL_USERS
-    try:
-        with open(USERS_FILE, 'r', encoding='utf-8') as f:
-            ALL_USERS = set(json.load(f))
-    except Exception:
-        ALL_USERS = set()
+# Удаляю функции save_users, load_users и все обращения к ним
 
 # --- Загружаем цены и пользователей при старте ---
-load_prices()
-load_users()
+# Удаляю функции load_prices, load_users и все обращения к ним
 
 if __name__ == '__main__':
     bot.polling(none_stop=True)
