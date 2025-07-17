@@ -170,11 +170,10 @@ def get_all_users():
 
 # --- Команда рассылки ---
 broadcast_state = {}
-ALL_USERS = set()  # Для хранения user_id всех пользователей, которые писали боту
 
 @bot.message_handler(commands=['broadcast'])
 def broadcast_start(message):
-    if not is_admin(message.from_user.id):
+    if message.from_user.id not in ADMIN_IDS:
         bot.reply_to(message, "Нет доступа.")
         return
     bot.send_message(message.chat.id, "Введите текст рассылки:")
@@ -182,7 +181,7 @@ def broadcast_start(message):
 
 @bot.message_handler(func=lambda m: broadcast_state.get(m.from_user.id))
 def broadcast_send(message):
-    if not is_admin(message.from_user.id):
+    if message.from_user.id not in ADMIN_IDS:
         bot.reply_to(message, "Нет доступа.")
         broadcast_state.pop(message.from_user.id, None)
         return
