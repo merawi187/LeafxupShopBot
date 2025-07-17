@@ -130,7 +130,7 @@ for platform, items in PLATFORM_ITEMS.items():
         PLATFORM_ITEM_KEYS[key] = (platform, name, price)
 
 # --- Админские ID (замените на свои) ---
-ADMIN_IDS = [526427613, 5174082916]  # Пример, замените на реальные Telegram user_id
+ADMIN_IDS = [526427613, 5174082916]
 
 # --- Для хранения изменённых цен (в памяти) ---
 MODIFIED_PRICES = {}
@@ -206,7 +206,7 @@ def clean_previous_messages(chat_id):
             try:
                 bot.delete_message(chat_id, msg_id)
             except Exception as e:
-                pass
+                print(f"[ERROR] Не удалось удалить сообщение {msg_id} в чате {chat_id}: {e}")
         messages_to_delete[chat_id] = []
 
 def add_message_to_delete(chat_id, message_id):
@@ -328,37 +328,32 @@ def platform_handler(call):
     clean_previous_messages(call.message.chat.id)
     platform = call.data
     photo_info = PLATFORM_PHOTOS.get(platform)
-    if platform == "genshin_locations":
-        if photo_info:
-            filename, caption = photo_info
-            try:
-                with open(filename, "rb") as photo:
-                    msg = bot.send_photo(call.message.chat.id, photo, caption=caption, reply_markup=get_locations_keyboard())
-                    add_message_to_delete(call.message.chat.id, msg.message_id)
-            except Exception as e:
-                error_msg = bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса. Обратитесь к менеджеру.")
-                add_message_to_delete(call.message.chat.id, error_msg.message_id)
-    elif platform == "steam":
+    # Для всех платформ, кроме steam, отправляем фото с кнопками под ним
+    if platform == "steam":
         user_states[call.from_user.id] = {"state": "awaiting_steam_login"}
         msg = bot.send_message(call.message.chat.id, "Пожалуйста, введите ваш логин Steam:")
         add_message_to_delete(call.message.chat.id, msg.message_id)
+    elif photo_info:
+        filename, caption = photo_info
+        try:
+            with open(filename, "rb") as photo:
+                # Для genshin_locations — отдельная клавиатура, для остальных — get_items_keyboard
+                if platform == "genshin_locations":
+                    reply_markup = get_locations_keyboard()
+                else:
+                    reply_markup = get_items_keyboard(platform)
+                msg = bot.send_photo(call.message.chat.id, photo, caption=caption, reply_markup=reply_markup)
+                add_message_to_delete(call.message.chat.id, msg.message_id)
+        except Exception as e:
+            error_msg = bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса. Обратитесь к менеджеру. ({e})")
+            add_message_to_delete(call.message.chat.id, error_msg.message_id)
     else:
-        if photo_info:
-            filename, caption = photo_info
-            try:
-                with open(filename, "rb") as photo:
-                    msg = bot.send_photo(call.message.chat.id, photo, caption=caption, reply_markup=get_items_keyboard(platform))
-                    add_message_to_delete(call.message.chat.id, msg.message_id)
-            except Exception as e:
-                error_msg = bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса. Обратитесь к менеджеру.")
-                add_message_to_delete(call.message.chat.id, error_msg.message_id)
-        else:
-            msg = bot.send_message(
-                call.message.chat.id,
-                f"Выберите позицию {dict(PLATFORMS)[platform]}:",
-                reply_markup=get_items_keyboard(platform)
-            )
-            add_message_to_delete(call.message.chat.id, msg.message_id)
+        msg = bot.send_message(
+            call.message.chat.id,
+            f"Выберите позицию {dict(PLATFORMS)[platform]}:",
+            reply_markup=get_items_keyboard(platform)
+        )
+        add_message_to_delete(call.message.chat.id, msg.message_id)
     bot.answer_callback_query(call.id)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("genshin_loc|||"))
