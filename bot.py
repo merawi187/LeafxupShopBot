@@ -278,6 +278,50 @@ def start_handler(message):
     )
     add_message_to_delete(message.chat.id, msg.message_id)
 
+def is_admin(user_id):
+    return user_id in ADMIN_IDS
+
+@bot.message_handler(commands=['users'])
+def show_users(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "Нет доступа.")
+        return
+    users = get_all_users()
+    if not users:
+        bot.send_message(message.chat.id, "Список пользователей пуст.")
+        return
+    text = 'Пользователи (user_id):\n' + '\n'.join(str(u) for u in users)
+    bot.send_message(message.chat.id, text)
+
+@bot.message_handler(commands=['adduser'])
+def add_user_cmd(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "Нет доступа.")
+        return
+    try:
+        user_id = int(message.text.split()[1])
+        add_user(user_id)
+        bot.send_message(message.chat.id, f"Пользователь {user_id} добавлен.")
+    except Exception:
+        bot.send_message(message.chat.id, "Используйте: /adduser <user_id>")
+
+@bot.message_handler(commands=['deluser'])
+def del_user_cmd(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "Нет доступа.")
+        return
+    try:
+        user_id = int(message.text.split()[1])
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        c.execute('DELETE FROM users WHERE user_id = ?', (user_id,))
+        conn.commit()
+        conn.close()
+        bot.send_message(message.chat.id, f"Пользователь {user_id} удалён.")
+    except Exception:
+        bot.send_message(message.chat.id, "Используйте: /deluser <user_id>")
+
+# Исправляю отображение кнопок под фото и удаление сообщений
 @bot.callback_query_handler(func=lambda call: call.data in PLATFORM_PHOTOS)
 def platform_handler(call):
     add_user(call.from_user.id)
@@ -289,11 +333,18 @@ def platform_handler(call):
             filename, caption = photo_info
             try:
                 with open(filename, "rb") as photo:
-                    msg = bot.send_photo(call.message.chat.id, photo, caption=caption, reply_markup=get_locations_keyboard())
+                    msg = bot.send_photo(call.message.chat.id, photo, caption=caption)
                     add_message_to_delete(call.message.chat.id, msg.message_id)
             except Exception as e:
                 error_msg = bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса. Обратитесь к менеджеру.")
                 add_message_to_delete(call.message.chat.id, error_msg.message_id)
+            # Кнопки под фото
+            msg2 = bot.send_message(
+                call.message.chat.id,
+                "Выберите регион:",
+                reply_markup=get_locations_keyboard()
+            )
+            add_message_to_delete(call.message.chat.id, msg2.message_id)
     elif platform == "steam":
         user_states[call.from_user.id] = {"state": "awaiting_steam_login"}
         msg = bot.send_message(call.message.chat.id, "Пожалуйста, введите ваш логин Steam:")
@@ -309,12 +360,12 @@ def platform_handler(call):
                 error_msg = bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса. Обратитесь к менеджеру.")
                 add_message_to_delete(call.message.chat.id, error_msg.message_id)
         platform_name = dict(PLATFORMS)[platform]
-        msg = bot.send_message(
+        msg2 = bot.send_message(
             call.message.chat.id,
             f"Выберите позицию {platform_name}:",
             reply_markup=get_items_keyboard(platform)
         )
-        add_message_to_delete(call.message.chat.id, msg.message_id)
+        add_message_to_delete(call.message.chat.id, msg2.message_id)
     bot.answer_callback_query(call.id)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("genshin_loc|||"))
@@ -528,46 +579,6 @@ def confirm_steam_handler(call):
     except Exception as e:
         print(f"Error in confirm_steam_handler: {e}")
         bot.answer_callback_query(call.id, "Ошибка при подтверждении заказа")
-
-@bot.message_handler(commands=['users'])
-def show_users(message):
-    if not is_admin(message.from_user.id):
-        bot.reply_to(message, "Нет доступа.")
-        return
-    users = get_all_users()
-    if not users:
-        bot.send_message(message.chat.id, "Список пользователей пуст.")
-        return
-    text = 'Пользователи (user_id):\n' + '\n'.join(str(u) for u in users)
-    bot.send_message(message.chat.id, text)
-
-@bot.message_handler(commands=['adduser'])
-def add_user_cmd(message):
-    if not is_admin(message.from_user.id):
-        bot.reply_to(message, "Нет доступа.")
-        return
-    try:
-        user_id = int(message.text.split()[1])
-        add_user(user_id)
-        bot.send_message(message.chat.id, f"Пользователь {user_id} добавлен.")
-    except Exception:
-        bot.send_message(message.chat.id, "Используйте: /adduser <user_id>")
-
-@bot.message_handler(commands=['deluser'])
-def del_user_cmd(message):
-    if not is_admin(message.from_user.id):
-        bot.reply_to(message, "Нет доступа.")
-        return
-    try:
-        user_id = int(message.text.split()[1])
-        conn = sqlite3.connect(DB_FILE)
-        c = conn.cursor()
-        c.execute('DELETE FROM users WHERE user_id = ?', (user_id,))
-        conn.commit()
-        conn.close()
-        bot.send_message(message.chat.id, f"Пользователь {user_id} удалён.")
-    except Exception:
-        bot.send_message(message.chat.id, "Используйте: /deluser <user_id>")
 
 # --- Функции для сохранения/загрузки цен ---
 # Удаляю функции save_prices, load_prices и все обращения к ним
