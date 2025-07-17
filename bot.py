@@ -380,6 +380,11 @@ def broadcast_send(message):
 def collect_user(message):
     add_user(message.from_user.id)
 
+@bot.callback_query_handler(func=lambda call: True)
+def collect_user_callback(call):
+    add_user(call.from_user.id)
+    # Не мешаем другим обработчикам, поэтому не return
+
 def clean_previous_messages(chat_id):
     """Удаляет все предыдущие сообщения бота в чате"""
     if chat_id in messages_to_delete:
@@ -543,11 +548,19 @@ def item_selected_handler(call):
     if key in LOCATION_ITEM_KEYS:
         region_code, name, _ = LOCATION_ITEM_KEYS[key]
         platform = "genshin_locations"
-        idx = int(key.split('_')[1])
+        try:
+            idx = int(key.split('_')[1])
+        except (IndexError, ValueError):
+            bot.answer_callback_query(call.id, "Ошибка позиции")
+            return
         price = get_price(platform, idx, region_code)
     elif key in PLATFORM_ITEM_KEYS:
         platform, name, _ = PLATFORM_ITEM_KEYS[key]
-        idx = int(key.split('_')[1])
+        try:
+            idx = int(key.split('_')[1])
+        except (IndexError, ValueError):
+            bot.answer_callback_query(call.id, "Ошибка позиции")
+            return
         price = get_price(platform, idx)
     else:
         bot.answer_callback_query(call.id, "Товар не найден")
@@ -585,11 +598,19 @@ def confirm_order_handler(call):
     if key in LOCATION_ITEM_KEYS:
         region_code, name, _ = LOCATION_ITEM_KEYS[key]
         platform = "genshin_locations"
-        idx = int(key.split('_')[1])
+        try:
+            idx = int(key.split('_')[1])
+        except (IndexError, ValueError):
+            bot.answer_callback_query(call.id, "Ошибка позиции")
+            return
         price = get_price(platform, idx, region_code)
     elif key in PLATFORM_ITEM_KEYS:
         platform, name, _ = PLATFORM_ITEM_KEYS[key]
-        idx = int(key.split('_')[1])
+        try:
+            idx = int(key.split('_')[1])
+        except (IndexError, ValueError):
+            bot.answer_callback_query(call.id, "Ошибка позиции")
+            return
         price = get_price(platform, idx)
     else:
         bot.answer_callback_query(call.id, "Ошибка при подтверждении заказа")
