@@ -221,6 +221,11 @@ def get_location_items_keyboard(region_code):
         text="◀️ Назад к регионам",
         callback_data="genshin_locations"
     ))
+    # Добавляю кнопку назад в главное меню
+    kb.add(types.InlineKeyboardButton(
+        text="◀️ В главное меню",
+        callback_data="back_to_platforms"
+    ))
     return kb
 
 @bot.message_handler(commands=['start'])
@@ -277,7 +282,7 @@ def platform_handler(call):
 def genshin_location_handler(call):
     clean_previous_messages(call.message.chat.id)
     region_code = call.data.split("|||")[1]
-    
+    print(f"[DEBUG] Выбран регион: {region_code}")
     if region_code in LOCATION_REGIONS:
         region_name = LOCATION_REGIONS[region_code]
         msg = bot.send_message(
@@ -287,6 +292,7 @@ def genshin_location_handler(call):
         )
         add_message_to_delete(call.message.chat.id, msg.message_id)
     else:
+        print(f"[DEBUG] Неизвестный регион: {region_code}")
         bot.answer_callback_query(call.id, "Регион не найден")
 
 @bot.callback_query_handler(func=lambda call: call.data == "genshin_locations")
@@ -315,6 +321,7 @@ def back_to_platforms_handler(call):
 def item_selected_handler(call):
     clean_previous_messages(call.message.chat.id)
     key = call.data.split("|||")[1]
+    print(f"[DEBUG] Выбран ключ товара: {key}")
     # Проверяем, к какой категории относится ключ
     if key in LOCATION_ITEM_KEYS:
         region_code, name, price = LOCATION_ITEM_KEYS[key]
@@ -322,6 +329,7 @@ def item_selected_handler(call):
     elif key in PLATFORM_ITEM_KEYS:
         platform, name, price = PLATFORM_ITEM_KEYS[key]
     else:
+        print(f"[DEBUG] Неизвестный ключ товара: {key}")
         bot.answer_callback_query(call.id, "Товар не найден")
         return
     kb = types.InlineKeyboardMarkup()
@@ -334,6 +342,10 @@ def item_selected_handler(call):
         kb.add(types.InlineKeyboardButton(
             text="◀️ Назад",
             callback_data=f"genshin_loc|||{region_code}"
+        ))
+        kb.add(types.InlineKeyboardButton(
+            text="◀️ В главное меню",
+            callback_data="back_to_platforms"
         ))
     else:
         kb.add(types.InlineKeyboardButton(
