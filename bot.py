@@ -228,12 +228,10 @@ def get_items_keyboard(platform):
         kb.add(types.InlineKeyboardButton(text="Нет доступных товаров", callback_data="none"))
         kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_platforms"))
         return kb
-    for idx, (name, value) in enumerate(items):
-        if isinstance(value, int):
-            key = f"{platform}_{idx}"
-            price = value # Возвращаю цену напрямую
-            callback_data = f"item|||{key}"
-            kb.add(types.InlineKeyboardButton(text=f"{name} ({price}₽)", callback_data=callback_data))
+    for idx, (name, price) in enumerate(items):
+        key = f"{platform}_{idx}"
+        callback_data = f"item|||{key}"
+        kb.add(types.InlineKeyboardButton(text=f"{name} ({price}₽)", callback_data=callback_data))
     kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_platforms"))
     return kb
 
@@ -255,16 +253,14 @@ def get_location_items_keyboard(region_code):
     items = LOCATION_ITEMS.get(region_code, [])
     for idx, (name, price) in enumerate(items):
         key = f"{region_code}_{idx}"
-        actual_price = price # Возвращаю цену напрямую
         kb.add(types.InlineKeyboardButton(
-            text=f"{name} - {actual_price}₽",
+            text=f"{name} - {price}₽",
             callback_data=f"item|||{key}"
         ))
     kb.add(types.InlineKeyboardButton(
         text="◀️ Назад к регионам",
         callback_data="genshin_locations"
     ))
-    # Добавляю кнопку назад в главное меню
     kb.add(types.InlineKeyboardButton(
         text="◀️ В главное меню",
         callback_data="back_to_platforms"
