@@ -158,12 +158,10 @@ def add_user(user_id):
     conn.close()
 
 def get_all_users():
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('SELECT user_id FROM users')
-    users = [row[0] for row in c.fetchall()]
-    conn.close()
-    return users
+    # Для примера: все, кто когда-либо взаимодействовал с ботом (можно доработать под вашу БД)
+    # Здесь просто возвращаем список из памяти, если хотите — подключите свою БД
+    # Например, можно хранить user_id в user_states
+    return list(user_states.keys())
 
 # --- Работа с ценами ---
 # Удаляю функции set_price_db, get_price_db, set_price, get_price, price_change_state и все message_handler с setprice
