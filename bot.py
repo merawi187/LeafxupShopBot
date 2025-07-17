@@ -246,12 +246,8 @@ def platform_handler(call):
     platform = call.data
     
     if platform == "genshin_locations":
-        bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text=PLATFORM_TEXTS["genshin_locations"],
-            reply_markup=get_locations_keyboard()
-        )
+        bot.send_message(call.message.chat.id, PLATFORM_TEXTS["genshin_locations"], 
+                         reply_markup=get_locations_keyboard())
         bot.answer_callback_query(call.id)
         return
     
