@@ -273,6 +273,10 @@ def platform_handler(call):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("genshin_loc|||"))
 def genshin_location_handler(call):
+print(f"Received callback data: {call.data}")  # Добавьте эту строку
+region = call.data.split("|||")[1]
+print(f"Extracted region: {region}")  # И эту
+print(f"LOCATION_ITEMS keys: {LOCATION_ITEMS.keys()}")  # И эту
     try:
         region = call.data.split("|||")[1]
         region_name = {
