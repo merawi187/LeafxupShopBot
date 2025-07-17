@@ -350,7 +350,7 @@ def fallback_handler(message):
 
 
 
-# Flask-заглушка для Render
+# Flask-заглушка
 def run_flask():
     app = Flask(__name__)
 
