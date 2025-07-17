@@ -147,6 +147,21 @@ LOCATION_ITEMS = {
     ]
 }
 
+# --- Маппинг для коротких callback_data ---
+# Для Genshin Impact (закрытие локаций)
+LOCATION_ITEM_KEYS = {}
+for region_code, items in LOCATION_ITEMS.items():
+    for idx, (name, price) in enumerate(items):
+        key = f"{region_code}_{idx}"
+        LOCATION_ITEM_KEYS[key] = (region_code, name, price)
+
+# Для остальных платформ
+PLATFORM_ITEM_KEYS = {}
+for platform, items in PLATFORM_ITEMS.items():
+    for idx, (name, price) in enumerate(items):
+        key = f"{platform}_{idx}"
+        PLATFORM_ITEM_KEYS[key] = (platform, name, price)
+
 def clean_previous_messages(chat_id):
     """Удаляет все предыдущие сообщения бота в чате"""
     if chat_id in messages_to_delete:
@@ -172,17 +187,12 @@ def get_platforms_keyboard():
 def get_items_keyboard(platform):
     kb = types.InlineKeyboardMarkup()
     items = PLATFORM_ITEMS.get(platform, [])
-    
-    for name, value in items:
+    for idx, (name, value) in enumerate(items):
         if isinstance(value, int):
-            callback_data = f"item|||{platform}|||{name}"
+            key = f"{platform}_{idx}"
+            callback_data = f"item|||{key}"
             kb.add(types.InlineKeyboardButton(text=f"{name} ({value}₽)", callback_data=callback_data))
-        else:
-            callback_data = f"genshin_loc|||{value}"
-            kb.add(types.InlineKeyboardButton(text=name, callback_data=callback_data))
-    
     kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_platforms"))
-    
     return kb
 
 def get_locations_keyboard():
@@ -193,24 +203,24 @@ def get_locations_keyboard():
             text=region_name,
             callback_data=f"genshin_loc|||{region_code}"
         ))
+    # Добавляю кнопку назад в главное меню
+    kb.add(types.InlineKeyboardButton(text="◀️ В главное меню", callback_data="back_to_platforms"))
     return kb
 
 def get_location_items_keyboard(region_code):
     """Клавиатура с товарами для конкретного региона"""
     kb = types.InlineKeyboardMarkup()
     items = LOCATION_ITEMS.get(region_code, [])
-    
-    for name, price in items:
+    for idx, (name, price) in enumerate(items):
+        key = f"{region_code}_{idx}"
         kb.add(types.InlineKeyboardButton(
             text=f"{name} - {price}₽",
-            callback_data=f"item|||genshin_locations|||{name}"
+            callback_data=f"item|||{key}"
         ))
-    
     kb.add(types.InlineKeyboardButton(
         text="◀️ Назад к регионам",
         callback_data="genshin_locations"
     ))
-    
     return kb
 
 @bot.message_handler(commands=['start'])
@@ -304,104 +314,63 @@ def back_to_platforms_handler(call):
 @bot.callback_query_handler(func=lambda call: call.data.startswith("item|||"))
 def item_selected_handler(call):
     clean_previous_messages(call.message.chat.id)
-    parts = call.data.split("|||")
-    platform = parts[1]
-    name = parts[2]
-    
-    # Находим цену товара
-    price = None
-    if platform == "genshin_locations":
-        for region_items in LOCATION_ITEMS.values():
-            for item_name, item_price in region_items:
-                if item_name == name:
-                    price = item_price
-                    break
-            if price is not None:
-                break
-    else:
-        for item_name, item_price in PLATFORM_ITEMS.get(platform, []):
-            if item_name == name:
-                price = item_price
-                break
-    
-    if price is not None:
-        kb = types.InlineKeyboardMarkup()
-        kb.add(types.InlineKeyboardButton(
-            text="✅ Подтвердить заказ",
-            callback_data=f"confirm|||{platform}|||{name}"
-        ))
-        
-        # Кнопка назад
-        if platform == "genshin_locations":
-            # Находим регион для этого товара
-            region_code = None
-            for code, items in LOCATION_ITEMS.items():
-                for item_name, _ in items:
-                    if item_name == name:
-                        region_code = code
-                        break
-                if region_code:
-                    break
-            
-            if region_code:
-                kb.add(types.InlineKeyboardButton(
-                    text="◀️ Назад",
-                    callback_data=f"genshin_loc|||{region_code}"
-                ))
-        else:
-            kb.add(types.InlineKeyboardButton(
-                text="◀️ Назад",
-                callback_data=platform
-            ))
-        
-        msg = bot.send_message(
-            call.message.chat.id,
-            f"Вы выбрали: {name} ({price}₽)\n\nПодтвердите заказ:",
-            reply_markup=kb
-        )
-        add_message_to_delete(call.message.chat.id, msg.message_id)
+    key = call.data.split("|||")[1]
+    # Проверяем, к какой категории относится ключ
+    if key in LOCATION_ITEM_KEYS:
+        region_code, name, price = LOCATION_ITEM_KEYS[key]
+        platform = "genshin_locations"
+    elif key in PLATFORM_ITEM_KEYS:
+        platform, name, price = PLATFORM_ITEM_KEYS[key]
     else:
         bot.answer_callback_query(call.id, "Товар не найден")
+        return
+    kb = types.InlineKeyboardMarkup()
+    kb.add(types.InlineKeyboardButton(
+        text="✅ Подтвердить заказ",
+        callback_data=f"confirm|||{key}"
+    ))
+    # Кнопка назад
+    if platform == "genshin_locations":
+        kb.add(types.InlineKeyboardButton(
+            text="◀️ Назад",
+            callback_data=f"genshin_loc|||{region_code}"
+        ))
+    else:
+        kb.add(types.InlineKeyboardButton(
+            text="◀️ Назад",
+            callback_data=platform
+        ))
+    msg = bot.send_message(
+        call.message.chat.id,
+        f"Вы выбрали: {name} ({price}₽)\n\nПодтвердите заказ:",
+        reply_markup=kb
+    )
+    add_message_to_delete(call.message.chat.id, msg.message_id)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("confirm|||"))
 def confirm_order_handler(call):
     clean_previous_messages(call.message.chat.id)
-    parts = call.data.split("|||")
-    platform = parts[1]
-    name = parts[2]
-    
-    # Находим цену товара
-    price = None
-    if platform == "genshin_locations":
-        for region_items in LOCATION_ITEMS.values():
-            for item_name, item_price in region_items:
-                if item_name == name:
-                    price = item_price
-                    break
-            if price is not None:
-                break
-    else:
-        for item_name, item_price in PLATFORM_ITEMS.get(platform, []):
-            if item_name == name:
-                price = item_price
-                break
-    
-    if price is not None:
-        username = call.from_user.username or 'Без username'
-        platform_name = dict(PLATFORMS).get(platform, platform)
-        
-        # Отправляем уведомление менеджеру
-        text = f"[НОВЫЙ ЗАКАЗ]\nПлатформа: {platform_name}\nПозиция: {name} ({price}₽)\nПользователь: @{username} ({call.from_user.id})"
-        bot.send_message(MANAGER_CHAT_ID, text)
-        
-        # Отправляем подтверждение пользователю
-        msg = bot.send_message(
-            call.message.chat.id,
-            f"✅ Заказ подтвержден!\n\n{name} ({price}₽)\n\nС вами свяжется менеджер для оплаты."
-        )
-        add_message_to_delete(call.message.chat.id, msg.message_id)
+    key = call.data.split("|||")[1]
+    # Проверяем, к какой категории относится ключ
+    if key in LOCATION_ITEM_KEYS:
+        region_code, name, price = LOCATION_ITEM_KEYS[key]
+        platform = "genshin_locations"
+    elif key in PLATFORM_ITEM_KEYS:
+        platform, name, price = PLATFORM_ITEM_KEYS[key]
     else:
         bot.answer_callback_query(call.id, "Ошибка при подтверждении заказа")
+        return
+    username = call.from_user.username or 'Без username'
+    platform_name = dict(PLATFORMS).get(platform, platform)
+    # Отправляем уведомление менеджеру
+    text = f"[НОВЫЙ ЗАКАЗ]\nПлатформа: {platform_name}\nПозиция: {name} ({price}₽)\nПользователь: @{username} ({call.from_user.id})"
+    bot.send_message(MANAGER_CHAT_ID, text)
+    # Отправляем подтверждение пользователю
+    msg = bot.send_message(
+        call.message.chat.id,
+        f"✅ Заказ подтвержден!\n\n{name} ({price}₽)\n\nС вами свяжется менеджер для оплаты."
+    )
+    add_message_to_delete(call.message.chat.id, msg.message_id)
 
 # Остальные обработчики для Steam (оставлены без изменений)
 @bot.callback_query_handler(func=lambda call: call.data == "steam")
