@@ -120,7 +120,7 @@ PLATFORM_ITEMS = {
         ("🌿 Сумеру", "sumeru"),
         ("🫵 Фонтейн", "fontaine"),
         ("🗿 Натлан", "natlan"),
-        ("❕ Второстепенные услуги", "other_services")
+        ("❕ Доп. услуги", "other_services")
     ],
     "hsr_price": [
         ("Слава безымянных", 800), ("Честь безымянных", 1600),
@@ -151,21 +151,18 @@ LOCATION_ITEMS = {
     "mondstadt": [
         ("Мондштадт (100%)", 850),
         ("Драконий хребет (100%)", 700),
-        ("Мондштадт + Драконий хребет (100%)", 1300),
-        ("◀️ Назад к регионам", "back_to_regions")
+        ("Мондштадт + Драконий хребет (100%)", 1300)
     ],
     "liyue": [
         ("Ли Юэ (100%)", 2300),
         ("Разлом (100%)", 1000),
         ("Ли Юэ + Разлом (100%)", 3300),
-        ("Долина Чэньюй (100%)", 2200),
-        ("◀️ Назад к регионам", "back_to_regions")
+        ("Долина Чэньюй (100%)", 2200)
     ],
     "inazuma": [
         ("Инадзума (100%)", 2000),
         ("Энканомия (100%)", 1200),
-        ("Инадзума + Энканомия (100%)", 3200),
-        ("◀️ Назад к регионам", "back_to_regions")
+        ("Инадзума + Энканомия (100%)", 3200)
     ],
     "sumeru": [
         ("Сумеру (100%)", 2200),
@@ -173,27 +170,23 @@ LOCATION_ITEMS = {
         ("Пустыня Хадрамавет (100%)", 1800),
         ("Царство Фаракхерт (100%)", 1200),
         ("Все пустыни Сумеру (100%)", 4350),
-        ("Сумеру (тропики + пустыня) (100%)", 6500),
-        ("◀️ Назад к регионам", "back_to_regions")
+        ("Сумеру (тропики + пустыня) (100%)", 6500)
     ],
     "fontaine": [
         ("Кур Де Фонтейн (100%)", 1800),
         ("Институт Фонтейна (100%)", 1700),
         ("Лес Эриний (100%)", 2100),
         ("Древнее Море (100%)", 1300),
-        ("Весь Фонтейн (100%)", 6400),
-        ("◀️ Назад к регионам", "back_to_regions")
+        ("Весь Фонтейн (100%)", 6400)
     ],
     "natlan": [
         ("Натлан 5.0 (100%)", 3000),
         ("Очканатлан (100%)", 1800),
-        ("Натлан 5.5 (100%)", 2250),
-        ("◀️ Назад к регионам", "back_to_regions")
+        ("Натлан 5.5 (100%)", 2250)
     ],
     "other_services": [
         ("Квест Аранар", 1800),
-        ("Уход за аккаунтом (месяц)", 3000),
-        ("◀️ Назад к регионам", "back_to_regions")
+        ("Уход за аккаунтом (месяц)", 3000)
     ]
 }
 
@@ -206,6 +199,7 @@ def get_platforms_keyboard():
 def get_items_keyboard(platform):
     kb = types.InlineKeyboardMarkup()
     items = PLATFORM_ITEMS.get(platform, [])
+    
     for name, value in items:
         if isinstance(value, int):
             callback_data = f"item|||{platform}|||{name}"
@@ -213,6 +207,10 @@ def get_items_keyboard(platform):
         else:
             callback_data = f"genshin_loc|||{value}"
             kb.add(types.InlineKeyboardButton(text=name, callback_data=callback_data))
+    
+    if platform != "genshin_locations":
+        kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_platforms"))
+    
     return kb
 
 def get_locations_keyboard(region=None):
@@ -223,20 +221,11 @@ def get_locations_keyboard(region=None):
             kb.add(types.InlineKeyboardButton(text=name, callback_data=f"genshin_loc|||{callback}"))
     else:
         items = LOCATION_ITEMS.get(region, [])
-        buttons = []
-        for name, value in items:
-            if isinstance(value, int):
-                callback_data = f"item|||genshin_locations|||{name}"
-                buttons.append(types.InlineKeyboardButton(text=f"{name} - {value}₽", callback_data=callback_data))
-            else:
-                callback_data = f"genshin_loc|||{value}" if value != "back_to_regions" else "genshin_locations"
-                buttons.append(types.InlineKeyboardButton(text=name, callback_data=callback_data))
+        for name, price in items:
+            callback_data = f"item|||genshin_locations|||{name}"
+            kb.add(types.InlineKeyboardButton(text=f"{name} - {price}₽", callback_data=callback_data))
         
-        for i in range(0, len(buttons), 2):
-            if i+1 < len(buttons):
-                kb.add(buttons[i], buttons[i+1])
-            else:
-                kb.add(buttons[i])
+        kb.add(types.InlineKeyboardButton(text="◀️ Назад к регионам", callback_data="genshin_locations"))
     
     return kb
 
@@ -279,18 +268,49 @@ def platform_handler(call):
 def genshin_location_handler(call):
     try:
         region = call.data.split("|||")[1]
-        if region == "back_to_regions":
-            bot.edit_message_text(PLATFORM_TEXTS["genshin_locations"],
-                                 call.message.chat.id,
-                                 call.message.message_id,
-                                 reply_markup=get_locations_keyboard())
-        else:
-            bot.edit_message_text(f"💎 {region.capitalize()} - доступные услуги:",
-                                 call.message.chat.id,
-                                 call.message.message_id,
-                                 reply_markup=get_locations_keyboard(region))
+        region_name = {
+            "mondstadt": "🌪 Мондштадт",
+            "liyue": "🪨 Ли Юэ",
+            "inazuma": "⚡️ Инадзума",
+            "sumeru": "🌿 Сумеру",
+            "fontaine": "🫵 Фонтейн",
+            "natlan": "🗿 Натлан",
+            "other_services": "❕ Дополнительные услуги"
+        }.get(region, region.capitalize())
+        
+        bot.edit_message_text(f"💎 {region_name} - доступные услуги:",
+                           call.message.chat.id,
+                           call.message.message_id,
+                           reply_markup=get_locations_keyboard(region))
     except Exception as e:
+        print(f"Error in genshin_location_handler: {e}")
         bot.send_message(call.message.chat.id, "Ошибка навигации. Попробуйте снова.")
+    
+    bot.answer_callback_query(call.id)
+
+@bot.callback_query_handler(func=lambda call: call.data == "genshin_locations")
+def back_to_locations_handler(call):
+    try:
+        bot.edit_message_text(PLATFORM_TEXTS["genshin_locations"],
+                           call.message.chat.id,
+                           call.message.message_id,
+                           reply_markup=get_locations_keyboard())
+    except Exception as e:
+        print(f"Error in back_to_locations_handler: {e}")
+        bot.send_message(call.message.chat.id, "Ошибка возврата. Попробуйте снова.")
+    
+    bot.answer_callback_query(call.id)
+
+@bot.callback_query_handler(func=lambda call: call.data == "back_to_platforms")
+def back_to_platforms_handler(call):
+    try:
+        bot.edit_message_text("Добро пожаловать! Выберите платформу для покупки услуги:",
+                           call.message.chat.id,
+                           call.message.message_id,
+                           reply_markup=get_platforms_keyboard())
+    except Exception as e:
+        print(f"Error in back_to_platforms_handler: {e}")
+        bot.send_message(call.message.chat.id, "Ошибка возврата. Попробуйте снова.")
     
     bot.answer_callback_query(call.id)
 
@@ -310,7 +330,7 @@ def item_selected_handler(call):
         if platform == "genshin_locations":
             for region in LOCATION_ITEMS.values():
                 for n, p in region:
-                    if n == name and isinstance(p, int):
+                    if n == name:
                         price = p
                         break
         else:
@@ -323,13 +343,27 @@ def item_selected_handler(call):
             kb = types.InlineKeyboardMarkup()
             confirm_callback = f"confirm|||{platform}|||{name}"
             kb.add(types.InlineKeyboardButton(text="Подтвердить заказ", callback_data=confirm_callback))
+            
+            if platform == "genshin_locations":
+                kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data=f"genshin_loc|||{get_region_by_name(name)}"))
+            else:
+                kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data=platform))
+            
             bot.send_message(call.message.chat.id, f"Вы выбрали: {name} ({price}₽). Подтвердите заказ:", reply_markup=kb)
         else:
             bot.send_message(call.message.chat.id, "Ошибка выбора позиции. Попробуйте снова.")
     except Exception as e:
+        print(f"Error in item_selected_handler: {e}")
         bot.send_message(call.message.chat.id, "Произошла ошибка при обработке выбора. Попробуйте снова.")
     
     bot.answer_callback_query(call.id)
+
+def get_region_by_name(name):
+    for region, items in LOCATION_ITEMS.items():
+        for item_name, _ in items:
+            if item_name == name:
+                return region
+    return None
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("confirm|||"))
 def confirm_order_handler(call):
@@ -347,7 +381,7 @@ def confirm_order_handler(call):
         if platform == "genshin_locations":
             for region in LOCATION_ITEMS.values():
                 for n, p in region:
-                    if n == name and isinstance(p, int):
+                    if n == name:
                         price = p
                         break
         else:
@@ -365,6 +399,7 @@ def confirm_order_handler(call):
         bot.send_message(call.message.chat.id, "Спасибо за заказ! С вами свяжется менеджер для оплаты.")
         
     except Exception as e:
+        print(f"Error in confirm_order_handler: {e}")
         bot.send_message(call.message.chat.id, "Произошла ошибка при подтверждении заказа. Попробуйте снова.")
     
     bot.answer_callback_query(call.id)
@@ -394,6 +429,7 @@ def steam_amount_handler(message):
         }
         kb = types.InlineKeyboardMarkup()
         kb.add(types.InlineKeyboardButton(text="Подтвердить", callback_data="confirm_steam"))
+        kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data="steam"))
         bot.send_message(message.chat.id, f"Логин: {login}\nСумма пополнения: {amount}₽\nКомиссия (8%): {commission}₽\nИтого к оплате: {total}₽\n\nПодтвердить заказ?", reply_markup=kb)
     except ValueError:
         bot.send_message(message.chat.id, "Пожалуйста, введите корректную сумму в рублях.")
@@ -413,6 +449,7 @@ def confirm_steam_handler(call):
         bot.send_message(call.message.chat.id, "Спасибо за заказ! С вами свяжется менеджер для оплаты.")
         user_states.pop(call.from_user.id, None)
     except Exception as e:
+        print(f"Error in confirm_steam_handler: {e}")
         bot.send_message(call.message.chat.id, "Произошла ошибка при подтверждении заказа. Попробуйте снова.")
     
     bot.answer_callback_query(call.id)
