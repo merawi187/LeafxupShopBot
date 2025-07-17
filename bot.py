@@ -3,6 +3,7 @@ import telebot
 from telebot import types
 from dotenv import load_dotenv
 import time
+import json
 
 load_dotenv()
 
@@ -161,6 +162,165 @@ for platform, items in PLATFORM_ITEMS.items():
     for idx, (name, price) in enumerate(items):
         key = f"{platform}_{idx}"
         PLATFORM_ITEM_KEYS[key] = (platform, name, price)
+
+# --- Админские ID (замените на свои) ---
+ADMIN_IDS = [123456789, 987654321]  # Пример, замените на реальные Telegram user_id
+
+# --- Для хранения изменённых цен (в памяти) ---
+MODIFIED_PRICES = {}
+
+# --- Вспомогательные функции ---
+def is_admin(user_id):
+    return user_id in ADMIN_IDS
+
+def get_price(platform, idx, region_code=None):
+    if platform == 'genshin_locations' and region_code is not None:
+        key = f"{region_code}_{idx}"
+        return MODIFIED_PRICES.get(key) or LOCATION_ITEMS[region_code][idx][1]
+    else:
+        key = f"{platform}_{idx}"
+        return MODIFIED_PRICES.get(key) or PLATFORM_ITEMS[platform][idx][1]
+
+def set_price(platform, idx, new_price, region_code=None):
+    if platform == 'genshin_locations' and region_code is not None:
+        key = f"{region_code}_{idx}"
+        MODIFIED_PRICES[key] = new_price
+    else:
+        key = f"{platform}_{idx}"
+        MODIFIED_PRICES[key] = new_price
+    save_prices()
+
+# --- FSM для смены цены ---
+price_change_state = {}
+
+@bot.message_handler(commands=['setprice'])
+def setprice_start(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "Нет доступа.")
+        return
+    kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    for callback, name in PLATFORMS:
+        kb.add(types.KeyboardButton(name))
+    bot.send_message(message.chat.id, "Выберите платформу:", reply_markup=kb)
+    price_change_state[message.from_user.id] = {'step': 'platform'}
+
+@bot.message_handler(func=lambda m: price_change_state.get(m.from_user.id, {}).get('step') == 'platform')
+def setprice_choose_platform(message):
+    platform = None
+    for code, name in PLATFORMS:
+        if message.text == name:
+            platform = code
+            break
+    if not platform:
+        bot.reply_to(message, "Платформа не найдена. Попробуйте снова.")
+        return
+    price_change_state[message.from_user.id] = {'step': 'item', 'platform': platform}
+    kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    if platform == 'genshin_locations':
+        for region_code, region_name in LOCATION_REGIONS.items():
+            kb.add(types.KeyboardButton(region_name))
+        bot.send_message(message.chat.id, "Выберите регион:", reply_markup=kb)
+    else:
+        for idx, (name, price) in enumerate(PLATFORM_ITEMS[platform]):
+            kb.add(types.KeyboardButton(f"{name} ({get_price(platform, idx)}₽)"))
+        bot.send_message(message.chat.id, "Выберите позицию:", reply_markup=kb)
+
+@bot.message_handler(func=lambda m: price_change_state.get(m.from_user.id, {}).get('step') == 'item')
+def setprice_choose_item(message):
+    state = price_change_state[message.from_user.id]
+    platform = state['platform']
+    if platform == 'genshin_locations':
+        region_code = None
+        for code, name in LOCATION_REGIONS.items():
+            if message.text == name:
+                region_code = code
+                break
+        if not region_code:
+            bot.reply_to(message, "Регион не найден. Попробуйте снова.")
+            return
+        price_change_state[message.from_user.id] = {'step': 'loc_item', 'platform': platform, 'region_code': region_code}
+        kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        for idx, (name, price) in enumerate(LOCATION_ITEMS[region_code]):
+            kb.add(types.KeyboardButton(f"{name} ({get_price(platform, idx, region_code)}₽)"))
+        bot.send_message(message.chat.id, "Выберите позицию:", reply_markup=kb)
+    else:
+        idx = None
+        for i, (name, price) in enumerate(PLATFORM_ITEMS[platform]):
+            if message.text.startswith(name):
+                idx = i
+                break
+        if idx is None:
+            bot.reply_to(message, "Позиция не найдена. Попробуйте снова.")
+            return
+        price_change_state[message.from_user.id] = {'step': 'new_price', 'platform': platform, 'idx': idx}
+        bot.send_message(message.chat.id, "Введите новую цену:", reply_markup=types.ReplyKeyboardRemove())
+
+@bot.message_handler(func=lambda m: price_change_state.get(m.from_user.id, {}).get('step') == 'loc_item')
+def setprice_choose_loc_item(message):
+    state = price_change_state[message.from_user.id]
+    region_code = state['region_code']
+    idx = None
+    for i, (name, price) in enumerate(LOCATION_ITEMS[region_code]):
+        if message.text.startswith(name):
+            idx = i
+            break
+    if idx is None:
+        bot.reply_to(message, "Позиция не найдена. Попробуйте снова.")
+        return
+    price_change_state[message.from_user.id] = {'step': 'new_price', 'platform': 'genshin_locations', 'region_code': region_code, 'idx': idx}
+    bot.send_message(message.chat.id, "Введите новую цену:", reply_markup=types.ReplyKeyboardRemove())
+
+@bot.message_handler(func=lambda m: price_change_state.get(m.from_user.id, {}).get('step') == 'new_price')
+def setprice_set_new_price(message):
+    state = price_change_state[message.from_user.id]
+    try:
+        new_price = int(message.text.strip())
+        if new_price <= 0:
+            raise ValueError
+    except:
+        bot.reply_to(message, "Введите корректную цену (целое число > 0)")
+        return
+    platform = state['platform']
+    idx = state['idx']
+    region_code = state.get('region_code')
+    set_price(platform, idx, new_price, region_code)
+    bot.send_message(message.chat.id, f"Цена успешно изменена!", reply_markup=types.ReplyKeyboardRemove())
+    price_change_state.pop(message.from_user.id, None)
+
+# --- Команда рассылки ---
+broadcast_state = {}
+ALL_USERS = set()  # Для хранения user_id всех пользователей, которые писали боту
+
+@bot.message_handler(commands=['broadcast'])
+def broadcast_start(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "Нет доступа.")
+        return
+    bot.send_message(message.chat.id, "Введите текст рассылки:")
+    broadcast_state[message.from_user.id] = True
+
+@bot.message_handler(func=lambda m: broadcast_state.get(m.from_user.id))
+def broadcast_send(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "Нет доступа.")
+        broadcast_state.pop(message.from_user.id, None)
+        return
+    text = message.text
+    count = 0
+    for user_id in ALL_USERS:
+        try:
+            bot.send_message(user_id, text)
+            count += 1
+        except:
+            pass
+    bot.send_message(message.chat.id, f"Рассылка завершена. Отправлено: {count}")
+    broadcast_state.pop(message.from_user.id, None)
+
+# --- Сбор user_id для рассылки ---
+@bot.message_handler(func=lambda m: True)
+def collect_user(message):
+    ALL_USERS.add(message.from_user.id)
+    save_users()
 
 def clean_previous_messages(chat_id):
     """Удаляет все предыдущие сообщения бота в чате"""
@@ -465,6 +625,36 @@ def confirm_steam_handler(call):
     except Exception as e:
         print(f"Error in confirm_steam_handler: {e}")
         bot.answer_callback_query(call.id, "Ошибка при подтверждении заказа")
+
+# --- Функции для сохранения/загрузки цен ---
+def save_prices():
+    with open(PRICES_FILE, 'w', encoding='utf-8') as f:
+        json.dump(MODIFIED_PRICES, f, ensure_ascii=False)
+
+def load_prices():
+    global MODIFIED_PRICES
+    try:
+        with open(PRICES_FILE, 'r', encoding='utf-8') as f:
+            MODIFIED_PRICES = json.load(f)
+    except Exception:
+        MODIFIED_PRICES = {}
+
+# --- Функции для сохранения/загрузки пользователей ---
+def save_users():
+    with open(USERS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(list(ALL_USERS), f)
+
+def load_users():
+    global ALL_USERS
+    try:
+        with open(USERS_FILE, 'r', encoding='utf-8') as f:
+            ALL_USERS = set(json.load(f))
+    except Exception:
+        ALL_USERS = set()
+
+# --- Загружаем цены и пользователей при старте ---
+load_prices()
+load_users()
 
 if __name__ == '__main__':
     bot.polling(none_stop=True)
