@@ -376,14 +376,7 @@ def broadcast_send(message):
     broadcast_state.pop(message.from_user.id, None)
 
 # --- Сбор user_id для рассылки ---
-@bot.message_handler(func=lambda m: m.text and not m.text.startswith('/'))
-def collect_user(message):
-    add_user(message.from_user.id)
-
-@bot.callback_query_handler(func=lambda call: True)
-def collect_user_callback(call):
-    add_user(call.from_user.id)
-    # Не мешаем другим обработчикам, поэтому не return
+# Удалён обработчик catch-all callback_query_handler и функция collect_user_callback
 
 def clean_previous_messages(chat_id):
     """Удаляет все предыдущие сообщения бота в чате"""
@@ -466,6 +459,7 @@ def start_handler(message):
 
 @bot.callback_query_handler(func=lambda call: call.data in PLATFORM_PHOTOS)
 def platform_handler(call):
+    add_user(call.from_user.id)
     clean_previous_messages(call.message.chat.id)
     platform = call.data
     photo_info = PLATFORM_PHOTOS.get(platform)
@@ -504,6 +498,7 @@ def platform_handler(call):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("genshin_loc|||"))
 def genshin_location_handler(call):
+    add_user(call.from_user.id)
     clean_previous_messages(call.message.chat.id)
     region_code = call.data.split("|||")[1]
     print(f"[DEBUG] Выбран регион: {region_code}")
@@ -521,6 +516,7 @@ def genshin_location_handler(call):
 
 @bot.callback_query_handler(func=lambda call: call.data == "genshin_locations")
 def back_to_locations_handler(call):
+    add_user(call.from_user.id)
     clean_previous_messages(call.message.chat.id)
     msg = bot.send_message(
         call.message.chat.id,
@@ -532,6 +528,7 @@ def back_to_locations_handler(call):
 
 @bot.callback_query_handler(func=lambda call: call.data == "back_to_platforms")
 def back_to_platforms_handler(call):
+    add_user(call.from_user.id)
     clean_previous_messages(call.message.chat.id)
     msg = bot.send_message(
         call.message.chat.id,
@@ -543,6 +540,7 @@ def back_to_platforms_handler(call):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("item|||"))
 def item_selected_handler(call):
+    add_user(call.from_user.id)
     clean_previous_messages(call.message.chat.id)
     key = call.data.split("|||")[1]
     if key in LOCATION_ITEM_KEYS:
@@ -593,6 +591,7 @@ def item_selected_handler(call):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("confirm|||"))
 def confirm_order_handler(call):
+    add_user(call.from_user.id)
     clean_previous_messages(call.message.chat.id)
     key = call.data.split("|||")[1]
     if key in LOCATION_ITEM_KEYS:
@@ -628,6 +627,7 @@ def confirm_order_handler(call):
 # Остальные обработчики для Steam (оставлены без изменений)
 @bot.callback_query_handler(func=lambda call: call.data == "steam")
 def back_to_steam_handler(call):
+    add_user(call.from_user.id)
     try:
         user_states.pop(call.from_user.id, None)
         clean_previous_messages(call.message.chat.id)
@@ -682,6 +682,7 @@ def steam_amount_handler(message):
 
 @bot.callback_query_handler(func=lambda call: call.data == "confirm_steam")
 def confirm_steam_handler(call):
+    add_user(call.from_user.id)
     clean_previous_messages(call.message.chat.id)
     try:
         data = user_states.get(call.from_user.id, {})
