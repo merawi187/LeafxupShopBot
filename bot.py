@@ -386,7 +386,7 @@ def clean_previous_messages(chat_id):
         for msg_id in messages_to_delete[chat_id]:
             try:
                 bot.delete_message(chat_id, msg_id)
-            except:
+            except Exception as e:
                 pass
         messages_to_delete[chat_id] = []
 
@@ -464,25 +464,30 @@ def platform_handler(call):
     clean_previous_messages(call.message.chat.id)
     platform = call.data
     photo_info = PLATFORM_PHOTOS.get(platform)
-    if photo_info:
-        filename, caption = photo_info
-        try:
-            with open(filename, "rb") as photo:
-                # Если это прайс, отправляем фото с кнопками
-                if platform == "genshin_locations":
+    if platform == "genshin_locations":
+        if photo_info:
+            filename, caption = photo_info
+            try:
+                with open(filename, "rb") as photo:
                     msg = bot.send_photo(call.message.chat.id, photo, caption=caption, reply_markup=get_locations_keyboard())
-                else:
-                    msg = bot.send_photo(call.message.chat.id, photo, caption=caption)
-                add_message_to_delete(call.message.chat.id, msg.message_id)
-        except Exception as e:
-            error_msg = bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса. Обратитесь к менеджеру.")
-            add_message_to_delete(call.message.chat.id, error_msg.message_id)
-    # Для steam и остальных платформ — только кнопки
-    if platform == "steam":
+                    add_message_to_delete(call.message.chat.id, msg.message_id)
+            except Exception as e:
+                error_msg = bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса. Обратитесь к менеджеру.")
+                add_message_to_delete(call.message.chat.id, error_msg.message_id)
+    elif platform == "steam":
         user_states[call.from_user.id] = {"state": "awaiting_steam_login"}
         msg = bot.send_message(call.message.chat.id, "Пожалуйста, введите ваш логин Steam:")
         add_message_to_delete(call.message.chat.id, msg.message_id)
-    elif platform not in ("genshin_locations", "steam"):
+    else:
+        if photo_info:
+            filename, caption = photo_info
+            try:
+                with open(filename, "rb") as photo:
+                    msg = bot.send_photo(call.message.chat.id, photo, caption=caption)
+                    add_message_to_delete(call.message.chat.id, msg.message_id)
+            except Exception as e:
+                error_msg = bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса. Обратитесь к менеджеру.")
+                add_message_to_delete(call.message.chat.id, error_msg.message_id)
         platform_name = dict(PLATFORMS)[platform]
         msg = bot.send_message(
             call.message.chat.id,
