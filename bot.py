@@ -167,7 +167,7 @@ for platform, items in PLATFORM_ITEMS.items():
         PLATFORM_ITEM_KEYS[key] = (platform, name, price)
 
 # --- Админские ID (замените на свои) ---
-ADMIN_IDS = [123456789, 987654321]  # Пример, замените на реальные Telegram user_id
+ADMIN_IDS = [526427613, 5174082916]  # Пример, замените на реальные Telegram user_id
 
 # --- Для хранения изменённых цен (в памяти) ---
 MODIFIED_PRICES = {}
@@ -320,7 +320,7 @@ def broadcast_send(message):
     broadcast_state.pop(message.from_user.id, None)
 
 # --- Сбор user_id для рассылки ---
-@bot.message_handler(func=lambda m: True)
+@bot.message_handler(func=lambda m: m.text and not m.text.startswith('/'))
 def collect_user(message):
     ALL_USERS.add(message.from_user.id)
     save_users()
