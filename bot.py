@@ -504,11 +504,15 @@ def confirm_order_handler(call):
 # Остальные обработчики для Steam (оставлены без изменений)
 @bot.callback_query_handler(func=lambda call: call.data == "steam")
 def back_to_steam_handler(call):
-    add_user(call.from_user.id)
     try:
         user_states.pop(call.from_user.id, None)
         clean_previous_messages(call.message.chat.id)
-        platform_handler(call)
+        # Повторно показать окно ввода логина Steam с кнопкой назад
+        user_states[call.from_user.id] = {"state": "awaiting_steam_login"}
+        kb = types.InlineKeyboardMarkup()
+        kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_platforms"))
+        msg = bot.send_message(call.message.chat.id, "Пожалуйста, введите ваш логин Steam:", reply_markup=kb)
+        add_message_to_delete(call.message.chat.id, msg.message_id)
     except Exception as e:
         print(f"Error in back_to_steam_handler: {e}")
         bot.answer_callback_query(call.id, "Ошибка возврата. Попробуйте снова.")
