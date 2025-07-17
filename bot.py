@@ -6,6 +6,8 @@ import time
 import json
 import sqlite3
 
+DB_FILE = 'data.db'
+
 PRICES_FILE = 'prices.json'
 USERS_FILE = 'users.json'
 
