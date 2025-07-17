@@ -333,18 +333,11 @@ def platform_handler(call):
             filename, caption = photo_info
             try:
                 with open(filename, "rb") as photo:
-                    msg = bot.send_photo(call.message.chat.id, photo, caption=caption)
+                    msg = bot.send_photo(call.message.chat.id, photo, caption=caption, reply_markup=get_locations_keyboard())
                     add_message_to_delete(call.message.chat.id, msg.message_id)
             except Exception as e:
                 error_msg = bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса. Обратитесь к менеджеру.")
                 add_message_to_delete(call.message.chat.id, error_msg.message_id)
-            # Кнопки под фото
-            msg2 = bot.send_message(
-                call.message.chat.id,
-                "Выберите регион:",
-                reply_markup=get_locations_keyboard()
-            )
-            add_message_to_delete(call.message.chat.id, msg2.message_id)
     elif platform == "steam":
         user_states[call.from_user.id] = {"state": "awaiting_steam_login"}
         msg = bot.send_message(call.message.chat.id, "Пожалуйста, введите ваш логин Steam:")
@@ -354,18 +347,18 @@ def platform_handler(call):
             filename, caption = photo_info
             try:
                 with open(filename, "rb") as photo:
-                    msg = bot.send_photo(call.message.chat.id, photo, caption=caption)
+                    msg = bot.send_photo(call.message.chat.id, photo, caption=caption, reply_markup=get_items_keyboard(platform))
                     add_message_to_delete(call.message.chat.id, msg.message_id)
             except Exception as e:
                 error_msg = bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса. Обратитесь к менеджеру.")
                 add_message_to_delete(call.message.chat.id, error_msg.message_id)
-        platform_name = dict(PLATFORMS)[platform]
-        msg2 = bot.send_message(
-            call.message.chat.id,
-            f"Выберите позицию {platform_name}:",
-            reply_markup=get_items_keyboard(platform)
-        )
-        add_message_to_delete(call.message.chat.id, msg2.message_id)
+        else:
+            msg = bot.send_message(
+                call.message.chat.id,
+                f"Выберите позицию {dict(PLATFORMS)[platform]}:",
+                reply_markup=get_items_keyboard(platform)
+            )
+            add_message_to_delete(call.message.chat.id, msg.message_id)
     bot.answer_callback_query(call.id)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("genshin_loc|||"))
