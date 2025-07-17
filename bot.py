@@ -177,7 +177,8 @@ def broadcast_start(message):
         bot.reply_to(message, "Нет доступа.")
         return
     clean_previous_messages(message.chat.id)
-    bot.send_message(message.chat.id, "Введите текст рассылки:")
+    msg = bot.send_message(message.chat.id, "Введите текст рассылки:")
+    add_message_to_delete(message.chat.id, msg.message_id)
     broadcast_state[message.from_user.id] = True
 
 @bot.message_handler(func=lambda m: broadcast_state.get(m.from_user.id))
@@ -194,7 +195,9 @@ def broadcast_send(message):
             count += 1
         except Exception as e:
             pass
-    bot.send_message(message.chat.id, f"Рассылка завершена. Отправлено: {count}")
+    clean_previous_messages(message.chat.id)
+    msg = bot.send_message(message.chat.id, f"Рассылка завершена. Отправлено: {count}")
+    add_message_to_delete(message.chat.id, msg.message_id)
     broadcast_state.pop(message.from_user.id, None)
 
 # --- Сбор user_id для рассылки ---
