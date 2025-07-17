@@ -224,6 +224,10 @@ def get_platforms_keyboard():
 def get_items_keyboard(platform):
     kb = types.InlineKeyboardMarkup()
     items = PLATFORM_ITEMS.get(platform, [])
+    if not items:
+        kb.add(types.InlineKeyboardButton(text="Нет доступных товаров", callback_data="none"))
+        kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_platforms"))
+        return kb
     for idx, (name, value) in enumerate(items):
         if isinstance(value, int):
             key = f"{platform}_{idx}"
@@ -408,18 +412,24 @@ def item_selected_handler(call):
         platform = "genshin_locations"
         try:
             idx = int(key.split('_')[1])
-        except (IndexError, ValueError):
+            items = LOCATION_ITEMS[region_code]
+            if idx < 0 or idx >= len(items):
+                raise IndexError
+        except (IndexError, ValueError, KeyError):
             bot.answer_callback_query(call.id, "Ошибка позиции")
             return
-        price = LOCATION_ITEMS[region_code][idx][1] # Возвращаю цену напрямую
+        price = items[idx][1] # Возвращаю цену напрямую
     elif key in PLATFORM_ITEM_KEYS:
         platform, name, _ = PLATFORM_ITEM_KEYS[key]
         try:
             idx = int(key.split('_')[1])
-        except (IndexError, ValueError):
+            items = PLATFORM_ITEMS[platform]
+            if idx < 0 or idx >= len(items):
+                raise IndexError
+        except (IndexError, ValueError, KeyError):
             bot.answer_callback_query(call.id, "Ошибка позиции")
             return
-        price = PLATFORM_ITEMS[platform][idx][1] # Возвращаю цену напрямую
+        price = items[idx][1] # Возвращаю цену напрямую
     else:
         bot.answer_callback_query(call.id, "Товар не найден")
         return
@@ -459,18 +469,24 @@ def confirm_order_handler(call):
         platform = "genshin_locations"
         try:
             idx = int(key.split('_')[1])
-        except (IndexError, ValueError):
+            items = LOCATION_ITEMS[region_code]
+            if idx < 0 or idx >= len(items):
+                raise IndexError
+        except (IndexError, ValueError, KeyError):
             bot.answer_callback_query(call.id, "Ошибка позиции")
             return
-        price = LOCATION_ITEMS[region_code][idx][1] # Возвращаю цену напрямую
+        price = items[idx][1] # Возвращаю цену напрямую
     elif key in PLATFORM_ITEM_KEYS:
         platform, name, _ = PLATFORM_ITEM_KEYS[key]
         try:
             idx = int(key.split('_')[1])
-        except (IndexError, ValueError):
+            items = PLATFORM_ITEMS[platform]
+            if idx < 0 or idx >= len(items):
+                raise IndexError
+        except (IndexError, ValueError, KeyError):
             bot.answer_callback_query(call.id, "Ошибка позиции")
             return
-        price = PLATFORM_ITEMS[platform][idx][1] # Возвращаю цену напрямую
+        price = items[idx][1] # Возвращаю цену напрямую
     else:
         bot.answer_callback_query(call.id, "Ошибка при подтверждении заказа")
         return
