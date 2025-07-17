@@ -4,6 +4,7 @@ from telebot import types
 from dotenv import load_dotenv
 import threading
 from flask import Flask
+import time
 
 load_dotenv()
 
@@ -50,42 +51,7 @@ PLATFORM_PHOTOS = {
 }
 
 PLATFORM_TEXTS = {
-    "genshin_locations": (
-        "💎 Закрытие локаций в Genshin Impact\n"
-        "\n🌪 - Мондштадт\n"
-        "• Мондштадт (100% закрытие) - 850 рублей\n"
-        "• Драконий хребет (100% закрытие) - 700\n"
-        "• Мондштадт/Драконий хребет (100% закрытие) - 1300\n"
-        "\n🪨 - Ли Юэ\n"
-        "• Ли Юэ (100% закрытие) - 2300\n"
-        "• Разлом (100% закрытие) - 1000\n"
-        "• Ли Юэ/Разлом (100% закрытие) - 3300\n"
-        "• Долина Чэньюй (100% закрытие) - 2200\n"
-        "\n⚡️ - Инадзума\n"
-        "• Инадзума (100% закрытие) - 2000\n"
-        "• Энканомия (100% закрытие) - 1200\n"
-        "• Инадзума/Энканомия (100% закрытие) - 3200\n"
-        "\n🌿 - Сумеру\n"
-        "• Сумеру (100% закрытие) - 2200\n"
-        "• Пустыня Колоннад (100% закрытие) - 1350\n"
-        "• Пустыня Хадрамавет (100% закрытие) - 1800\n"
-        "• Царство Фаракхерт (100% закрытие) - 1200\n"
-        "• Все пустыни Сумеру (100% закрытие) - 4350\n"
-        "• Сумеру тропики и пустыня (100% закрытие) - 6500\n"
-        "\n🫵 - Фонтейн\n"
-        "• Кур Де Фонтейн (100% закрытие) - 1800\n"
-        "• Институт Фонтейна (100% закрытие) - 1700\n"
-        "• Лес Эриний (100% закрытие) - 2100\n"
-        "• Древнее Море (100% закрытие) - 1300\n"
-        "• Весь Фонтейн (100% закрытие) - 6400\n"
-        "\n🗿 - Натлан\n"
-        "• Натлан 5.0 (100% закрытие) - 3000\n"
-        "• Очканатлан (100% закрытие) - 1800\n"
-        "• Натлан 5.5 (100% закрытие) - 2250\n"
-        "\n❕ Второстепенные услуги\n"
-        "• Квест Аранар - 1800\n"
-        "• Уход за аккаунтом (месяц) - 3000\n"
-    ),
+    "genshin_locations": "💎 Закрытие локаций в Genshin Impact\nВыберите регион:",
     "hsr_price": (
         "Хонкаи Стар Рейл\n"
         "Слава безымянных - 800\n"
@@ -95,7 +61,7 @@ PLATFORM_TEXTS = {
         "Х1980 - 2150\n"
         "Х3280 - 3510\n"
         "Х6480 - 7050\n"
-        "Календарь - 350\n"
+        "Календарь - 350"
     ),
     "zzz_price": (
         "Зенлес Зоне Зиро\n"
@@ -106,7 +72,7 @@ PLATFORM_TEXTS = {
         "Х1980 - 2180\n"
         "Х3280 - 3650\n"
         "Х6480 - 7100\n"
-        "Набор - 355\n"
+        "Набор - 355"
     ),
     "roblox_price": (
         "Роблокс\n"
@@ -115,7 +81,7 @@ PLATFORM_TEXTS = {
         "Х2000 - 1810\n"
         "Х5250 - 4400\n"
         "Х11000 - 8800\n"
-        "Х24000 - 18000\n"
+        "Х24000 - 18000"
     ),
     "clash_price": (
         "Клеш Рояль\n"
@@ -125,7 +91,7 @@ PLATFORM_TEXTS = {
         "Х2500 - 1590\n"
         "Х6500 - 3985\n"
         "Х14000 - 7995\n"
-        "Х80 - 75\n"
+        "Х80 - 75"
     ),
     "brawl_price": (
         "Бравл Старс\n"
@@ -137,38 +103,97 @@ PLATFORM_TEXTS = {
         "Х170 - 780\n"
         "Х360 - 1580\n"
         "Х950 - 3900\n"
-        "Х2000 - 7800\n"
+        "Х2000 - 7800"
     ),
 }
 
-# --- Кнопки для позиций по платформам ---
 PLATFORM_ITEMS = {
     "genshin_price": [
-        ("Гимн", 700), ("Хор", 1410), ("Х65", 70), ("Х300", 310), ("Х980", 980), ("Х1980", 1850), ("Х3280", 2900), ("Х6480", 5800), ("Карточка", 310)
+        ("Гимн", 700), ("Хор", 1410), ("Х65", 70), ("Х300", 310),
+        ("Х980", 980), ("Х1980", 1850), ("Х3280", 2900), ("Х6480", 5800),
+        ("Карточка", 310)
     ],
     "genshin_locations": [
-        ("Мондштадт (100% закрытие)", 850), ("Драконий хребет (100% закрытие)", 700), ("Мондштадт/Драконий хребет (100% закрытие)", 1300),
-        ("Ли Юэ (100% закрытие)", 2300), ("Разлом (100% закрытие)", 1000), ("Ли Юэ/Разлом (100% закрытие)", 3300), ("Долина Чэньюй (100% закрытие)", 2200),
-        ("Инадзума (100% закрытие)", 2000), ("Энканомия (100% закрытие)", 1200), ("Инадзума/Энканомия (100% закрытие)", 3200),
-        ("Сумеру (100% закрытие)", 2200), ("Пустыня Колоннад (100% закрытие)", 1350), ("Пустыня Хадрамавет (100% закрытие)", 1800), ("Царство Фаракхерт (100% закрытие)", 1200), ("Все пустыни Сумеру (100% закрытие)", 4350), ("Сумеру тропики и пустыня (100% закрытие)", 6500),
-        ("Кур Де Фонтейн (100% закрытие)", 1800), ("Институт Фонтейна (100% закрытие)", 1700), ("Лес Эриний (100% закрытие)", 2100), ("Древнее Море (100% закрытие)", 1300), ("Весь Фонтейн (100% закрытие)", 6400),
-        ("Натлан 5.0 (100% закрытие)", 3000), ("Очканатлан (100% закрытие)", 1800), ("Натлан 5.5 (100% закрытие)", 2250),
-        ("Квест Аранар", 1800), ("Уход за аккаунтом (месяц)", 3000)
+        ("🌪 Мондштадт", "mondstadt"),
+        ("🪨 Ли Юэ", "liyue"),
+        ("⚡️ Инадзума", "inazuma"),
+        ("🌿 Сумеру", "sumeru"),
+        ("🫵 Фонтейн", "fontaine"),
+        ("🗿 Натлан", "natlan"),
+        ("❕ Второстепенные услуги", "other_services")
     ],
     "hsr_price": [
-        ("Слава безымянных", 800), ("Честь безымянных", 1600), ("Х300", 350), ("Х980", 1380), ("Х1980", 2150), ("Х3280", 3510), ("Х6480", 7050), ("Календарь", 350)
+        ("Слава безымянных", 800), ("Честь безымянных", 1600),
+        ("Х300", 350), ("Х980", 1380), ("Х1980", 2150),
+        ("Х3280", 3510), ("Х6480", 7050), ("Календарь", 350)
     ],
     "zzz_price": [
-        ("Фонд Риду продвинутый", 810), ("Фонд Риду премиальный", 1610), ("Х300", 355), ("Х980", 1110), ("Х1980", 2180), ("Х3280", 3650), ("Х6480", 7100), ("Набор", 355)
+        ("Фонд Риду продвинутый", 810), ("Фонд Риду премиальный", 1610),
+        ("Х300", 355), ("Х980", 1110), ("Х1980", 2180),
+        ("Х3280", 3650), ("Х6480", 7100), ("Набор", 355)
     ],
     "roblox_price": [
-        ("Х500", 470), ("Х1000", 910), ("Х2000", 1810), ("Х5250", 4400), ("Х11000", 8800), ("Х24000", 18000)
+        ("Х500", 470), ("Х1000", 910), ("Х2000", 1810),
+        ("Х5250", 4400), ("Х11000", 8800), ("Х24000", 18000)
     ],
     "clash_price": [
-        ("Пасс рояль", 94), ("Х500", 395), ("Х1200", 795), ("Х2500", 1590), ("Х6500", 3985), ("Х14000", 7995), ("Х80", 75)
+        ("Пасс рояль", 94), ("Х500", 395), ("Х1200", 795),
+        ("Х2500", 1590), ("Х6500", 3985), ("Х14000", 7995), ("Х80", 75)
     ],
     "brawl_price": [
-        ("Бравл Пасс", 500), ("Улучшение до плюс", 315), ("Бравл Пасс плюс", 770), ("Х30", 155), ("Х80", 385), ("Х170", 780), ("Х360", 1580), ("Х950", 3900), ("Х2000", 7800)
+        ("Бравл Пасс", 500), ("Улучшение до плюс", 315),
+        ("Бравл Пасс плюс", 770), ("Х30", 155), ("Х80", 385),
+        ("Х170", 780), ("Х360", 1580), ("Х950", 3900), ("Х2000", 7800)
+    ]
+}
+
+LOCATION_ITEMS = {
+    "mondstadt": [
+        ("Мондштадт (100%)", 850),
+        ("Драконий хребет (100%)", 700),
+        ("Мондштадт + Драконий хребет (100%)", 1300),
+        ("◀️ Назад к регионам", "back_to_regions")
+    ],
+    "liyue": [
+        ("Ли Юэ (100%)", 2300),
+        ("Разлом (100%)", 1000),
+        ("Ли Юэ + Разлом (100%)", 3300),
+        ("Долина Чэньюй (100%)", 2200),
+        ("◀️ Назад к регионам", "back_to_regions")
+    ],
+    "inazuma": [
+        ("Инадзума (100%)", 2000),
+        ("Энканомия (100%)", 1200),
+        ("Инадзума + Энканомия (100%)", 3200),
+        ("◀️ Назад к регионам", "back_to_regions")
+    ],
+    "sumeru": [
+        ("Сумеру (100%)", 2200),
+        ("Пустыня Колоннад (100%)", 1350),
+        ("Пустыня Хадрамавет (100%)", 1800),
+        ("Царство Фаракхерт (100%)", 1200),
+        ("Все пустыни Сумеру (100%)", 4350),
+        ("Сумеру (тропики + пустыня) (100%)", 6500),
+        ("◀️ Назад к регионам", "back_to_regions")
+    ],
+    "fontaine": [
+        ("Кур Де Фонтейн (100%)", 1800),
+        ("Институт Фонтейна (100%)", 1700),
+        ("Лес Эриний (100%)", 2100),
+        ("Древнее Море (100%)", 1300),
+        ("Весь Фонтейн (100%)", 6400),
+        ("◀️ Назад к регионам", "back_to_regions")
+    ],
+    "natlan": [
+        ("Натлан 5.0 (100%)", 3000),
+        ("Очканатлан (100%)", 1800),
+        ("Натлан 5.5 (100%)", 2250),
+        ("◀️ Назад к регионам", "back_to_regions")
+    ],
+    "other_services": [
+        ("Квест Аранар", 1800),
+        ("Уход за аккаунтом (месяц)", 3000),
+        ("◀️ Назад к регионам", "back_to_regions")
     ]
 }
 
@@ -181,10 +206,38 @@ def get_platforms_keyboard():
 def get_items_keyboard(platform):
     kb = types.InlineKeyboardMarkup()
     items = PLATFORM_ITEMS.get(platform, [])
-    for name, price in items:
-        # Используем уникальный разделитель ||| для callback_data
-        callback_data = f"item|||{platform}|||{name}"
-        kb.add(types.InlineKeyboardButton(text=f"{name} ({price}₽)", callback_data=callback_data))
+    for name, value in items:
+        if isinstance(value, int):
+            callback_data = f"item|||{platform}|||{name}"
+            kb.add(types.InlineKeyboardButton(text=f"{name} ({value}₽)", callback_data=callback_data))
+        else:
+            callback_data = f"genshin_loc|||{value}"
+            kb.add(types.InlineKeyboardButton(text=name, callback_data=callback_data))
+    return kb
+
+def get_locations_keyboard(region=None):
+    kb = types.InlineKeyboardMarkup(row_width=2)
+    
+    if region is None:
+        for name, callback in PLATFORM_ITEMS["genshin_locations"]:
+            kb.add(types.InlineKeyboardButton(text=name, callback_data=f"genshin_loc|||{callback}"))
+    else:
+        items = LOCATION_ITEMS.get(region, [])
+        buttons = []
+        for name, value in items:
+            if isinstance(value, int):
+                callback_data = f"item|||genshin_locations|||{name}"
+                buttons.append(types.InlineKeyboardButton(text=f"{name} - {value}₽", callback_data=callback_data))
+            else:
+                callback_data = f"genshin_loc|||{value}" if value != "back_to_regions" else "genshin_locations"
+                buttons.append(types.InlineKeyboardButton(text=name, callback_data=callback_data))
+        
+        for i in range(0, len(buttons), 2):
+            if i+1 < len(buttons):
+                kb.add(buttons[i], buttons[i+1])
+            else:
+                kb.add(buttons[i])
+    
     return kb
 
 @bot.message_handler(commands=['start'])
@@ -192,15 +245,17 @@ def start_handler(message):
     user_states.pop(message.from_user.id, None)
     bot.send_message(message.chat.id, "Добро пожаловать! Выберите платформу для покупки услуги:", reply_markup=get_platforms_keyboard())
 
-
-
-# Универсальный обработчик для всех платформ
 @bot.callback_query_handler(func=lambda call: call.data in PLATFORM_PHOTOS)
 def platform_handler(call):
     platform = call.data
-    photo_info = PLATFORM_PHOTOS.get(platform)
     
-    # Отправляем фото прайса
+    if platform == "genshin_locations":
+        bot.send_message(call.message.chat.id, PLATFORM_TEXTS["genshin_locations"], 
+                         reply_markup=get_locations_keyboard())
+        bot.answer_callback_query(call.id)
+        return
+    
+    photo_info = PLATFORM_PHOTOS.get(platform)
     if photo_info:
         filename, caption = photo_info
         try:
@@ -209,26 +264,39 @@ def platform_handler(call):
         except Exception as e:
             bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса для {caption}. Обратитесь к менеджеру.")
     
-    # Обрабатываем разные платформы
     if platform == "steam":
-        # Steam: запрашиваем логин
         user_states[call.from_user.id] = {"state": "awaiting_steam_login"}
         bot.send_message(call.message.chat.id, "Пожалуйста, введите ваш логин Steam:")
     else:
-        # Все остальные платформы: показываем кнопки с позициями
         platform_name = dict(PLATFORMS)[platform]
-        # Добавляем небольшую задержку для надежности
-        import time
         time.sleep(0.5)
-        bot.send_message(call.message.chat.id, f"Выберите позицию {platform_name}:", reply_markup=get_items_keyboard(platform))
+        bot.send_message(call.message.chat.id, f"Выберите позицию {platform_name}:", 
+                         reply_markup=get_items_keyboard(platform))
     
     bot.answer_callback_query(call.id)
 
-# Обработка выбора позиции для всех платформ (кроме Steam)
+@bot.callback_query_handler(func=lambda call: call.data.startswith("genshin_loc|||"))
+def genshin_location_handler(call):
+    try:
+        region = call.data.split("|||")[1]
+        if region == "back_to_regions":
+            bot.edit_message_text(PLATFORM_TEXTS["genshin_locations"],
+                                 call.message.chat.id,
+                                 call.message.message_id,
+                                 reply_markup=get_locations_keyboard())
+        else:
+            bot.edit_message_text(f"💎 {region.capitalize()} - доступные услуги:",
+                                 call.message.chat.id,
+                                 call.message.message_id,
+                                 reply_markup=get_locations_keyboard(region))
+    except Exception as e:
+        bot.send_message(call.message.chat.id, "Ошибка навигации. Попробуйте снова.")
+    
+    bot.answer_callback_query(call.id)
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith("item|||"))
 def item_selected_handler(call):
     try:
-        # Используем уникальный разделитель ||| для надежного парсинга
         parts = call.data.split("|||")
         if len(parts) != 3:
             bot.send_message(call.message.chat.id, "Ошибка обработки выбора. Попробуйте снова.")
@@ -238,15 +306,20 @@ def item_selected_handler(call):
         platform = parts[1]
         name = parts[2]
         
-        # Находим цену для выбранной позиции
         price = None
-        for n, p in PLATFORM_ITEMS.get(platform, []):
-            if n == name:
-                price = p
-                break
+        if platform == "genshin_locations":
+            for region in LOCATION_ITEMS.values():
+                for n, p in region:
+                    if n == name and isinstance(p, int):
+                        price = p
+                        break
+        else:
+            for n, p in PLATFORM_ITEMS.get(platform, []):
+                if n == name:
+                    price = p
+                    break
         
         if price is not None:
-            # Создаем кнопку подтверждения с уникальным разделителем
             kb = types.InlineKeyboardMarkup()
             confirm_callback = f"confirm|||{platform}|||{name}"
             kb.add(types.InlineKeyboardButton(text="Подтвердить заказ", callback_data=confirm_callback))
@@ -258,11 +331,9 @@ def item_selected_handler(call):
     
     bot.answer_callback_query(call.id)
 
-# Обработка подтверждения заказа
 @bot.callback_query_handler(func=lambda call: call.data.startswith("confirm|||"))
 def confirm_order_handler(call):
     try:
-        # Парсим callback data с уникальным разделителем
         parts = call.data.split("|||")
         if len(parts) != 3:
             bot.send_message(call.message.chat.id, "Ошибка обработки подтверждения. Попробуйте снова.")
@@ -272,21 +343,25 @@ def confirm_order_handler(call):
         platform = parts[1]
         name = parts[2]
         
-        # Находим цену
         price = None
-        for n, p in PLATFORM_ITEMS.get(platform, []):
-            if n == name:
-                price = p
-                break
+        if platform == "genshin_locations":
+            for region in LOCATION_ITEMS.values():
+                for n, p in region:
+                    if n == name and isinstance(p, int):
+                        price = p
+                        break
+        else:
+            for n, p in PLATFORM_ITEMS.get(platform, []):
+                if n == name:
+                    price = p
+                    break
         
         username = call.from_user.username or 'Без username'
         platform_name = dict(PLATFORMS).get(platform, platform)
         
-        # Отправляем заказ менеджеру
         text = f"[НОВЫЙ ЗАКАЗ]\nПлатформа: {platform_name}\nПозиция: {name} ({price}₽)\nПользователь: @{username} ({call.from_user.id})"
         bot.send_message(MANAGER_CHAT_ID, text)
         
-        # Подтверждаем пользователю
         bot.send_message(call.message.chat.id, "Спасибо за заказ! С вами свяжется менеджер для оплаты.")
         
     except Exception as e:
@@ -294,7 +369,6 @@ def confirm_order_handler(call):
     
     bot.answer_callback_query(call.id)
 
-# Steam: логин -> сумма с ограничением
 @bot.message_handler(func=lambda message: user_states.get(message.from_user.id, {}).get("state") == "awaiting_steam_login")
 def steam_login_handler(message):
     login = message.text.strip()
@@ -324,7 +398,6 @@ def steam_amount_handler(message):
     except ValueError:
         bot.send_message(message.chat.id, "Пожалуйста, введите корректную сумму в рублях.")
 
-# Обработка подтверждения Steam заказа
 @bot.callback_query_handler(func=lambda call: call.data == "confirm_steam")
 def confirm_steam_handler(call):
     try:
@@ -348,9 +421,6 @@ def confirm_steam_handler(call):
 def fallback_handler(message):
     bot.send_message(message.chat.id, "Пожалуйста, выберите платформу через меню /start.")
 
-
-
-# Flask-заглушка
 def run_flask():
     app = Flask(__name__)
 
@@ -365,4 +435,4 @@ if __name__ == "__main__":
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.daemon = True
     flask_thread.start()
-    bot.polling(none_stop=True) 
+    bot.polling(none_stop=True)
