@@ -407,28 +407,29 @@ def item_selected_handler(call):
     add_user(call.from_user.id)
     clean_previous_messages(call.message.chat.id)
     key = call.data.split("|||")[1]
-    # Проверяем, к какой категории относится ключ
+    # Genshin локации
     if key in LOCATION_ITEM_KEYS:
-        region_code, name, _ = LOCATION_ITEM_KEYS[key]
-        platform = "genshin_locations"
+        region_code = key.split('_')[0]
         try:
             idx = int(key.split('_')[1])
             items = LOCATION_ITEMS[region_code]
             if idx < 0 or idx >= len(items):
                 raise IndexError
-            price = items[idx][1]
-        except (IndexError, ValueError, KeyError):
+            name, price = items[idx]
+            platform = "genshin_locations"
+        except Exception:
             bot.answer_callback_query(call.id, "Ошибка позиции")
             return
-    elif key in PLATFORM_ITEM_KEYS:
-        platform, name, _ = PLATFORM_ITEM_KEYS[key]
+    # Остальные платформы
+    elif "_" in key:
+        platform, idx_str = key.rsplit("_", 1)
         try:
-            idx = int(key.split('_')[1])
-            items = PLATFORM_ITEMS[platform]
+            idx = int(idx_str)
+            items = PLATFORM_ITEMS.get(platform, [])
             if idx < 0 or idx >= len(items):
                 raise IndexError
-            price = items[idx][1]
-        except (IndexError, ValueError, KeyError):
+            name, price = items[idx]
+        except Exception:
             bot.answer_callback_query(call.id, "Ошибка позиции")
             return
     else:
