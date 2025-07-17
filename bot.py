@@ -229,6 +229,13 @@ def get_locations_keyboard(region=None):
     
     return kb
 
+def get_region_by_name(name):
+    for region, items in LOCATION_ITEMS.items():
+        for item_name, _ in items:
+            if item_name == name:
+                return region
+    return None
+
 @bot.message_handler(commands=['start'])
 def start_handler(message):
     user_states.pop(message.from_user.id, None)
@@ -239,8 +246,12 @@ def platform_handler(call):
     platform = call.data
     
     if platform == "genshin_locations":
-        bot.send_message(call.message.chat.id, PLATFORM_TEXTS["genshin_locations"], 
-                         reply_markup=get_locations_keyboard())
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text=PLATFORM_TEXTS["genshin_locations"],
+            reply_markup=get_locations_keyboard()
+        )
         bot.answer_callback_query(call.id)
         return
     
@@ -278,49 +289,51 @@ def genshin_location_handler(call):
             "other_services": "❕ Дополнительные услуги"
         }.get(region, region.capitalize())
         
-        bot.edit_message_text(f"💎 {region_name} - доступные услуги:",
-                           call.message.chat.id,
-                           call.message.message_id,
-                           reply_markup=get_locations_keyboard(region))
+        if region in LOCATION_ITEMS:
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text=f"💎 {region_name} - доступные услуги:",
+                reply_markup=get_locations_keyboard(region)
+            )
+        else:
+            bot.answer_callback_query(call.id, "Регион не найден")
     except Exception as e:
         print(f"Error in genshin_location_handler: {e}")
-        bot.send_message(call.message.chat.id, "Ошибка навигации. Попробуйте снова.")
-    
-    bot.answer_callback_query(call.id)
+        bot.answer_callback_query(call.id, "Ошибка навигации. Попробуйте снова.")
 
 @bot.callback_query_handler(func=lambda call: call.data == "genshin_locations")
 def back_to_locations_handler(call):
     try:
-        bot.edit_message_text(PLATFORM_TEXTS["genshin_locations"],
-                           call.message.chat.id,
-                           call.message.message_id,
-                           reply_markup=get_locations_keyboard())
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text=PLATFORM_TEXTS["genshin_locations"],
+            reply_markup=get_locations_keyboard()
+        )
     except Exception as e:
         print(f"Error in back_to_locations_handler: {e}")
-        bot.send_message(call.message.chat.id, "Ошибка возврата. Попробуйте снова.")
-    
-    bot.answer_callback_query(call.id)
+        bot.answer_callback_query(call.id, "Ошибка возврата. Попробуйте снова.")
 
 @bot.callback_query_handler(func=lambda call: call.data == "back_to_platforms")
 def back_to_platforms_handler(call):
     try:
-        bot.edit_message_text("Добро пожаловать! Выберите платформу для покупки услуги:",
-                           call.message.chat.id,
-                           call.message.message_id,
-                           reply_markup=get_platforms_keyboard())
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text="Добро пожаловать! Выберите платформу для покупки услуги:",
+            reply_markup=get_platforms_keyboard()
+        )
     except Exception as e:
         print(f"Error in back_to_platforms_handler: {e}")
-        bot.send_message(call.message.chat.id, "Ошибка возврата. Попробуйте снова.")
-    
-    bot.answer_callback_query(call.id)
+        bot.answer_callback_query(call.id, "Ошибка возврата. Попробуйте снова.")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("item|||"))
 def item_selected_handler(call):
     try:
         parts = call.data.split("|||")
         if len(parts) != 3:
-            bot.send_message(call.message.chat.id, "Ошибка обработки выбора. Попробуйте снова.")
-            bot.answer_callback_query(call.id)
+            bot.answer_callback_query(call.id, "Ошибка обработки выбора")
             return
             
         platform = parts[1]
@@ -342,36 +355,33 @@ def item_selected_handler(call):
         if price is not None:
             kb = types.InlineKeyboardMarkup()
             confirm_callback = f"confirm|||{platform}|||{name}"
-            kb.add(types.InlineKeyboardButton(text="Подтвердить заказ", callback_data=confirm_callback))
+            kb.add(types.InlineKeyboardButton(text="✅ Подтвердить заказ", callback_data=confirm_callback))
             
             if platform == "genshin_locations":
-                kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data=f"genshin_loc|||{get_region_by_name(name)}"))
+                region = get_region_by_name(name)
+                if region:
+                    kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data=f"genshin_loc|||{region}"))
             else:
                 kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data=platform))
             
-            bot.send_message(call.message.chat.id, f"Вы выбрали: {name} ({price}₽). Подтвердите заказ:", reply_markup=kb)
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text=f"Вы выбрали: {name} ({price}₽)\n\nПодтвердите заказ:",
+                reply_markup=kb
+            )
         else:
-            bot.send_message(call.message.chat.id, "Ошибка выбора позиции. Попробуйте снова.")
+            bot.answer_callback_query(call.id, "Товар не найден")
     except Exception as e:
         print(f"Error in item_selected_handler: {e}")
-        bot.send_message(call.message.chat.id, "Произошла ошибка при обработке выбора. Попробуйте снова.")
-    
-    bot.answer_callback_query(call.id)
-
-def get_region_by_name(name):
-    for region, items in LOCATION_ITEMS.items():
-        for item_name, _ in items:
-            if item_name == name:
-                return region
-    return None
+        bot.answer_callback_query(call.id, "Ошибка при обработке выбора")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("confirm|||"))
 def confirm_order_handler(call):
     try:
         parts = call.data.split("|||")
         if len(parts) != 3:
-            bot.send_message(call.message.chat.id, "Ошибка обработки подтверждения. Попробуйте снова.")
-            bot.answer_callback_query(call.id)
+            bot.answer_callback_query(call.id, "Ошибка подтверждения")
             return
             
         platform = parts[1]
@@ -396,13 +406,15 @@ def confirm_order_handler(call):
         text = f"[НОВЫЙ ЗАКАЗ]\nПлатформа: {platform_name}\nПозиция: {name} ({price}₽)\nПользователь: @{username} ({call.from_user.id})"
         bot.send_message(MANAGER_CHAT_ID, text)
         
-        bot.send_message(call.message.chat.id, "Спасибо за заказ! С вами свяжется менеджер для оплаты.")
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text=f"✅ Заказ подтвержден!\n\n{name} ({price}₽)\n\nС вами свяжется менеджер для оплаты."
+        )
         
     except Exception as e:
         print(f"Error in confirm_order_handler: {e}")
-        bot.send_message(call.message.chat.id, "Произошла ошибка при подтверждении заказа. Попробуйте снова.")
-    
-    bot.answer_callback_query(call.id)
+        bot.answer_callback_query(call.id, "Ошибка при подтверждении заказа")
 
 @bot.message_handler(func=lambda message: user_states.get(message.from_user.id, {}).get("state") == "awaiting_steam_login")
 def steam_login_handler(message):
@@ -428,9 +440,11 @@ def steam_amount_handler(message):
             "total": total
         }
         kb = types.InlineKeyboardMarkup()
-        kb.add(types.InlineKeyboardButton(text="Подтвердить", callback_data="confirm_steam"))
+        kb.add(types.InlineKeyboardButton(text="✅ Подтвердить", callback_data="confirm_steam"))
         kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data="steam"))
-        bot.send_message(message.chat.id, f"Логин: {login}\nСумма пополнения: {amount}₽\nКомиссия (8%): {commission}₽\nИтого к оплате: {total}₽\n\nПодтвердить заказ?", reply_markup=kb)
+        bot.send_message(message.chat.id, 
+                        f"Логин: {login}\nСумма пополнения: {amount}₽\nКомиссия (8%): {commission}₽\nИтого к оплате: {total}₽\n\nПодтвердить заказ?",
+                        reply_markup=kb)
     except ValueError:
         bot.send_message(message.chat.id, "Пожалуйста, введите корректную сумму в рублях.")
 
@@ -446,13 +460,16 @@ def confirm_steam_handler(call):
         
         text = f"[НОВЫЙ ЗАКАЗ]\nSteam\nЛогин: {login}\nСумма: {amount}₽\nКомиссия: {commission}₽\nИтого: {total}₽\nПользователь: @{username} ({call.from_user.id})"
         bot.send_message(MANAGER_CHAT_ID, text)
-        bot.send_message(call.message.chat.id, "Спасибо за заказ! С вами свяжется менеджер для оплаты.")
+        
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text=f"✅ Заказ подтвержден!\n\nЛогин: {login}\nСумма: {amount}₽\nИтого: {total}₽\n\nС вами свяжется менеджер для оплаты."
+        )
         user_states.pop(call.from_user.id, None)
     except Exception as e:
         print(f"Error in confirm_steam_handler: {e}")
-        bot.send_message(call.message.chat.id, "Произошла ошибка при подтверждении заказа. Попробуйте снова.")
-    
-    bot.answer_callback_query(call.id)
+        bot.answer_callback_query(call.id, "Ошибка при подтверждении заказа")
 
 @bot.message_handler(func=lambda message: True)
 def fallback_handler(message):
