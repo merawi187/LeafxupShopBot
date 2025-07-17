@@ -176,6 +176,7 @@ def broadcast_start(message):
     if message.from_user.id not in ADMIN_IDS:
         bot.reply_to(message, "Нет доступа.")
         return
+    clean_previous_messages(message.chat.id)
     bot.send_message(message.chat.id, "Введите текст рассылки:")
     broadcast_state[message.from_user.id] = True
 
@@ -191,7 +192,7 @@ def broadcast_send(message):
         try:
             bot.send_message(user_id, text)
             count += 1
-        except:
+        except Exception as e:
             pass
     bot.send_message(message.chat.id, f"Рассылка завершена. Отправлено: {count}")
     broadcast_state.pop(message.from_user.id, None)
@@ -206,7 +207,7 @@ def clean_previous_messages(chat_id):
             try:
                 bot.delete_message(chat_id, msg_id)
             except Exception as e:
-                print(f"[ERROR] Не удалось удалить сообщение {msg_id} в чате {chat_id}: {e}")
+                pass
         messages_to_delete[chat_id] = []
 
 def add_message_to_delete(chat_id, message_id):
@@ -270,6 +271,7 @@ def get_location_items_keyboard(region_code):
 @bot.message_handler(commands=['start'])
 def start_handler(message):
     clean_previous_messages(message.chat.id)
+    add_user(message.from_user.id)
     user_states.pop(message.from_user.id, None)
     msg = bot.send_message(
         message.chat.id,
@@ -328,7 +330,6 @@ def platform_handler(call):
     clean_previous_messages(call.message.chat.id)
     platform = call.data
     photo_info = PLATFORM_PHOTOS.get(platform)
-    # Для всех платформ, кроме steam, отправляем фото с кнопками под ним
     if platform == "steam":
         user_states[call.from_user.id] = {"state": "awaiting_steam_login"}
         msg = bot.send_message(call.message.chat.id, "Пожалуйста, введите ваш логин Steam:")
