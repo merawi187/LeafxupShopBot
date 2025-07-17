@@ -376,7 +376,7 @@ def broadcast_send(message):
     broadcast_state.pop(message.from_user.id, None)
 
 # --- Сбор user_id для рассылки ---
-@bot.message_handler(func=lambda m: True)
+@bot.message_handler(func=lambda m: m.text and not m.text.startswith('/'))
 def collect_user(message):
     add_user(message.from_user.id)
 
@@ -463,31 +463,26 @@ def start_handler(message):
 def platform_handler(call):
     clean_previous_messages(call.message.chat.id)
     platform = call.data
-    
-    # Отправляем фото прайса
     photo_info = PLATFORM_PHOTOS.get(platform)
     if photo_info:
         filename, caption = photo_info
         try:
             with open(filename, "rb") as photo:
-                photo_msg = bot.send_photo(call.message.chat.id, photo, caption=caption)
-                add_message_to_delete(call.message.chat.id, photo_msg.message_id)
+                # Если это прайс, отправляем фото с кнопками
+                if platform == "genshin_locations":
+                    msg = bot.send_photo(call.message.chat.id, photo, caption=caption, reply_markup=get_locations_keyboard())
+                else:
+                    msg = bot.send_photo(call.message.chat.id, photo, caption=caption)
+                add_message_to_delete(call.message.chat.id, msg.message_id)
         except Exception as e:
             error_msg = bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса. Обратитесь к менеджеру.")
             add_message_to_delete(call.message.chat.id, error_msg.message_id)
-    
-    if platform == "genshin_locations":
-        msg = bot.send_message(
-            call.message.chat.id,
-            "💎 Закрытие локаций в Genshin Impact\nВыберите регион:",
-            reply_markup=get_locations_keyboard()
-        )
-        add_message_to_delete(call.message.chat.id, msg.message_id)
-    elif platform == "steam":
+    # Для steam и остальных платформ — только кнопки
+    if platform == "steam":
         user_states[call.from_user.id] = {"state": "awaiting_steam_login"}
         msg = bot.send_message(call.message.chat.id, "Пожалуйста, введите ваш логин Steam:")
         add_message_to_delete(call.message.chat.id, msg.message_id)
-    else:
+    elif platform not in ("genshin_locations", "steam"):
         platform_name = dict(PLATFORMS)[platform]
         msg = bot.send_message(
             call.message.chat.id,
@@ -495,7 +490,6 @@ def platform_handler(call):
             reply_markup=get_items_keyboard(platform)
         )
         add_message_to_delete(call.message.chat.id, msg.message_id)
-    
     bot.answer_callback_query(call.id)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("genshin_loc|||"))
