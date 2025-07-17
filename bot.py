@@ -331,28 +331,33 @@ def platform_handler(call):
     clean_previous_messages(call.message.chat.id)
     platform = call.data
     photo_info = PLATFORM_PHOTOS.get(platform)
-    if platform == "steam":
-        user_states[call.from_user.id] = {"state": "awaiting_steam_login"}
-        msg = bot.send_message(call.message.chat.id, "Пожалуйста, введите ваш логин Steam:")
-        add_message_to_delete(call.message.chat.id, msg.message_id)
-    elif photo_info:
+    if photo_info:
         filename, caption = photo_info
         try:
             with open(filename, "rb") as photo:
-                # Для genshin_locations — отдельная клавиатура, для остальных — get_items_keyboard
-                if platform == "genshin_locations":
-                    reply_markup = get_locations_keyboard()
-                else:
-                    reply_markup = get_items_keyboard(platform)
-                msg = bot.send_photo(call.message.chat.id, photo, caption=caption, reply_markup=reply_markup)
-                add_message_to_delete(call.message.chat.id, msg.message_id)
+                photo_msg = bot.send_photo(call.message.chat.id, photo, caption=caption)
+                add_message_to_delete(call.message.chat.id, photo_msg.message_id)
         except Exception as e:
-            error_msg = bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса. Обратитесь к менеджеру. ({e})")
+            error_msg = bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса. Обратитесь к менеджеру.")
             add_message_to_delete(call.message.chat.id, error_msg.message_id)
-    else:
+    if platform == "genshin_locations":
         msg = bot.send_message(
             call.message.chat.id,
-            f"Выберите позицию {dict(PLATFORMS)[platform]}:",
+            "💎 Закрытие локаций в Genshin Impact\nВыберите регион:",
+            reply_markup=get_locations_keyboard()
+        )
+        add_message_to_delete(call.message.chat.id, msg.message_id)
+    elif platform == "steam":
+        user_states[call.from_user.id] = {"state": "awaiting_steam_login"}
+        kb = types.InlineKeyboardMarkup()
+        kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_platforms"))
+        msg = bot.send_message(call.message.chat.id, "Пожалуйста, введите ваш логин Steam:", reply_markup=kb)
+        add_message_to_delete(call.message.chat.id, msg.message_id)
+    else:
+        platform_name = dict(PLATFORMS)[platform]
+        msg = bot.send_message(
+            call.message.chat.id,
+            f"Выберите позицию {platform_name}:",
             reply_markup=get_items_keyboard(platform)
         )
         add_message_to_delete(call.message.chat.id, msg.message_id)
@@ -402,40 +407,38 @@ def back_to_platforms_handler(call):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("item|||"))
 def item_selected_handler(call):
-    add_user(call.from_user.id)
     clean_previous_messages(call.message.chat.id)
     key = call.data.split("|||")[1]
+    # Проверяем, к какой категории относится ключ
     if key in LOCATION_ITEM_KEYS:
-        region_code, name, _ = LOCATION_ITEM_KEYS[key]
+        region_code, name, price = LOCATION_ITEM_KEYS[key]
         platform = "genshin_locations"
-        try:
+    elif key in PLATFORM_ITEM_KEYS:
+        platform, name, price = PLATFORM_ITEM_KEYS[key]
+    else:
+        bot.answer_callback_query(call.id, "Товар не найден")
+        return
+    # Проверяем индекс на всякий случай
+    try:
+        if platform == "genshin_locations":
             idx = int(key.split('_')[1])
             items = LOCATION_ITEMS[region_code]
             if idx < 0 or idx >= len(items):
                 raise IndexError
-        except (IndexError, ValueError, KeyError):
-            bot.answer_callback_query(call.id, "Ошибка позиции")
-            return
-        price = items[idx][1] # Возвращаю цену напрямую
-    elif key in PLATFORM_ITEM_KEYS:
-        platform, name, _ = PLATFORM_ITEM_KEYS[key]
-        try:
+        else:
             idx = int(key.split('_')[1])
             items = PLATFORM_ITEMS[platform]
             if idx < 0 or idx >= len(items):
                 raise IndexError
-        except (IndexError, ValueError, KeyError):
-            bot.answer_callback_query(call.id, "Ошибка позиции")
-            return
-        price = items[idx][1] # Возвращаю цену напрямую
-    else:
-        bot.answer_callback_query(call.id, "Товар не найден")
+    except Exception:
+        bot.answer_callback_query(call.id, "Ошибка позиции")
         return
     kb = types.InlineKeyboardMarkup()
     kb.add(types.InlineKeyboardButton(
         text="✅ Подтвердить заказ",
         callback_data=f"confirm|||{key}"
     ))
+    # Кнопка назад
     if platform == "genshin_locations":
         kb.add(types.InlineKeyboardButton(
             text="◀️ Назад",
