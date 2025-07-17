@@ -2,8 +2,6 @@ import os
 import telebot
 from telebot import types
 from dotenv import load_dotenv
-import threading
-from flask import Flask
 import time
 
 load_dotenv()
@@ -38,6 +36,7 @@ PLATFORMS = [
 ]
 
 user_states = {}
+messages_to_delete = {}  # Для хранения ID сообщений, которые нужно удалить
 
 PLATFORM_PHOTOS = {
     "genshin_price": ("genshin_price.jpg", "Прайс-лист Genshin Impact"),
@@ -50,101 +49,15 @@ PLATFORM_PHOTOS = {
     "brawl_price": ("bs_price.jpg", "Прайс-лист Brawl Stars"),
 }
 
-PLATFORM_TEXTS = {
-    "genshin_locations": "💎 Закрытие локаций в Genshin Impact\nВыберите регион:",
-    "hsr_price": (
-        "Хонкаи Стар Рейл\n"
-        "Слава безымянных - 800\n"
-        "Честь безымянных - 1600\n"
-        "Х300 - 350\n"
-        "Х980 - 1380\n"
-        "Х1980 - 2150\n"
-        "Х3280 - 3510\n"
-        "Х6480 - 7050\n"
-        "Календарь - 350"
-    ),
-    "zzz_price": (
-        "Зенлес Зоне Зиро\n"
-        "Фонд Риду продвинутый - 810\n"
-        "Фонд Риду премиальный - 1610\n"
-        "Х300 - 355\n"
-        "Х980 - 1110\n"
-        "Х1980 - 2180\n"
-        "Х3280 - 3650\n"
-        "Х6480 - 7100\n"
-        "Набор - 355"
-    ),
-    "roblox_price": (
-        "Роблокс\n"
-        "Х500 - 470\n"
-        "Х1000 - 910\n"
-        "Х2000 - 1810\n"
-        "Х5250 - 4400\n"
-        "Х11000 - 8800\n"
-        "Х24000 - 18000"
-    ),
-    "clash_price": (
-        "Клеш Рояль\n"
-        "Пасс рояль - 94\n"
-        "Х500 - 395\n"
-        "Х1200 - 795\n"
-        "Х2500 - 1590\n"
-        "Х6500 - 3985\n"
-        "Х14000 - 7995\n"
-        "Х80 - 75"
-    ),
-    "brawl_price": (
-        "Бравл Старс\n"
-        "Бравл Пасс - 500\n"
-        "Улучшение до плюс - 315\n"
-        "Бравл Пасс плюс - 770\n"
-        "Х30 - 155\n"
-        "Х80 - 385\n"
-        "Х170 - 780\n"
-        "Х360 - 1580\n"
-        "Х950 - 3900\n"
-        "Х2000 - 7800"
-    ),
-}
-
-PLATFORM_ITEMS = {
-    "genshin_price": [
-        ("Гимн", 700), ("Хор", 1410), ("Х65", 70), ("Х300", 310),
-        ("Х980", 980), ("Х1980", 1850), ("Х3280", 2900), ("Х6480", 5800),
-        ("Карточка", 310)
-    ],
-    "genshin_locations": [
-        ("🌪 Мондштадт", "mondstadt"),
-        ("🪨 Ли Юэ", "liyue"),
-        ("⚡️ Инадзума", "inazuma"),
-        ("🌿 Сумеру", "sumeru"),
-        ("🫵 Фонтейн", "fontaine"),
-        ("🗿 Натлан", "natlan"),
-        ("❕ Доп. услуги", "other_services")
-    ],
-    "hsr_price": [
-        ("Слава безымянных", 800), ("Честь безымянных", 1600),
-        ("Х300", 350), ("Х980", 1380), ("Х1980", 2150),
-        ("Х3280", 3510), ("Х6480", 7050), ("Календарь", 350)
-    ],
-    "zzz_price": [
-        ("Фонд Риду продвинутый", 810), ("Фонд Риду премиальный", 1610),
-        ("Х300", 355), ("Х980", 1110), ("Х1980", 2180),
-        ("Х3280", 3650), ("Х6480", 7100), ("Набор", 355)
-    ],
-    "roblox_price": [
-        ("Х500", 470), ("Х1000", 910), ("Х2000", 1810),
-        ("Х5250", 4400), ("Х11000", 8800), ("Х24000", 18000)
-    ],
-    "clash_price": [
-        ("Пасс рояль", 94), ("Х500", 395), ("Х1200", 795),
-        ("Х2500", 1590), ("Х6500", 3985), ("Х14000", 7995), ("Х80", 75)
-    ],
-    "brawl_price": [
-        ("Бравл Пасс", 500), ("Улучшение до плюс", 315),
-        ("Бравл Пасс плюс", 770), ("Х30", 155), ("Х80", 385),
-        ("Х170", 780), ("Х360", 1580), ("Х950", 3900), ("Х2000", 7800)
-    ]
+# Полностью переработанный раздел локаций Genshin Impact
+LOCATION_REGIONS = {
+    "mondstadt": "🌪 Мондштадт",
+    "liyue": "🪨 Ли Юэ",
+    "inazuma": "⚡️ Инадзума",
+    "sumeru": "🌿 Сумеру",
+    "fontaine": "🫵 Фонтейн",
+    "natlan": "🗿 Натлан",
+    "other_services": "❕ Доп. услуги"
 }
 
 LOCATION_ITEMS = {
@@ -190,6 +103,22 @@ LOCATION_ITEMS = {
     ]
 }
 
+def clean_previous_messages(chat_id):
+    """Удаляет все предыдущие сообщения бота в чате"""
+    if chat_id in messages_to_delete:
+        for msg_id in messages_to_delete[chat_id]:
+            try:
+                bot.delete_message(chat_id, msg_id)
+            except:
+                pass
+        messages_to_delete[chat_id] = []
+
+def add_message_to_delete(chat_id, message_id):
+    """Добавляет сообщение в список для удаления"""
+    if chat_id not in messages_to_delete:
+        messages_to_delete[chat_id] = []
+    messages_to_delete[chat_id].append(message_id)
+
 def get_platforms_keyboard():
     kb = types.InlineKeyboardMarkup()
     for callback, name in PLATFORMS:
@@ -208,256 +137,261 @@ def get_items_keyboard(platform):
             callback_data = f"genshin_loc|||{value}"
             kb.add(types.InlineKeyboardButton(text=name, callback_data=callback_data))
     
-    if platform != "genshin_locations":
-        kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_platforms"))
+    kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_platforms"))
     
     return kb
 
-def get_locations_keyboard(region=None):
+def get_locations_keyboard():
+    """Клавиатура для выбора региона"""
     kb = types.InlineKeyboardMarkup(row_width=2)
-    
-    if region is None:
-        for name, callback in PLATFORM_ITEMS["genshin_locations"]:
-            kb.add(types.InlineKeyboardButton(text=name, callback_data=f"genshin_loc|||{callback}"))
-    else:
-        items = LOCATION_ITEMS.get(region, [])
-        if not items:
-            kb.add(types.InlineKeyboardButton(text="◀️ Назад к регионам", callback_data="genshin_locations"))
-            return kb
-            
-        for name, price in items:
-            callback_data = f"item|||genshin_locations|||{name}"
-            kb.add(types.InlineKeyboardButton(text=f"{name} - {price}₽", callback_data=callback_data))
-        
-        kb.add(types.InlineKeyboardButton(text="◀️ Назад к регионам", callback_data="genshin_locations"))
-    
+    for region_code, region_name in LOCATION_REGIONS.items():
+        kb.add(types.InlineKeyboardButton(
+            text=region_name,
+            callback_data=f"genshin_loc|||{region_code}"
+        ))
     return kb
 
-def get_region_by_name(name):
-    for region, items in LOCATION_ITEMS.items():
-        for item_name, _ in items:
-            if item_name == name:
-                return region
-    return None
+def get_location_items_keyboard(region_code):
+    """Клавиатура с товарами для конкретного региона"""
+    kb = types.InlineKeyboardMarkup()
+    items = LOCATION_ITEMS.get(region_code, [])
+    
+    for name, price in items:
+        kb.add(types.InlineKeyboardButton(
+            text=f"{name} - {price}₽",
+            callback_data=f"item|||genshin_locations|||{name}"
+        ))
+    
+    kb.add(types.InlineKeyboardButton(
+        text="◀️ Назад к регионам",
+        callback_data="genshin_locations"
+    ))
+    
+    return kb
 
 @bot.message_handler(commands=['start'])
 def start_handler(message):
+    clean_previous_messages(message.chat.id)
     user_states.pop(message.from_user.id, None)
-    bot.send_message(message.chat.id, "Добро пожаловать! Выберите платформу для покупки услуги:", reply_markup=get_platforms_keyboard())
+    msg = bot.send_message(
+        message.chat.id,
+        "Добро пожаловать! Выберите платформу для покупки услуги:",
+        reply_markup=get_platforms_keyboard()
+    )
+    add_message_to_delete(message.chat.id, msg.message_id)
 
 @bot.callback_query_handler(func=lambda call: call.data in PLATFORM_PHOTOS)
 def platform_handler(call):
+    clean_previous_messages(call.message.chat.id)
     platform = call.data
     
-    # Сначала отправляем фото
+    # Отправляем фото прайса
     photo_info = PLATFORM_PHOTOS.get(platform)
     if photo_info:
         filename, caption = photo_info
         try:
             with open(filename, "rb") as photo:
-                bot.send_photo(call.message.chat.id, photo, caption=caption)
+                photo_msg = bot.send_photo(call.message.chat.id, photo, caption=caption)
+                add_message_to_delete(call.message.chat.id, photo_msg.message_id)
         except Exception as e:
-            bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса для {caption}. Обратитесь к менеджеру.")
-    
-    # Удаляем предыдущее сообщение
-    try:
-        bot.delete_message(call.message.chat.id, call.message.message_id)
-    except:
-        pass
+            error_msg = bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса. Обратитесь к менеджеру.")
+            add_message_to_delete(call.message.chat.id, error_msg.message_id)
     
     if platform == "genshin_locations":
-        bot.send_message(call.message.chat.id, PLATFORM_TEXTS["genshin_locations"], 
-                       reply_markup=get_locations_keyboard())
-        bot.answer_callback_query(call.id)
-        return
-    
-    if platform == "steam":
+        msg = bot.send_message(
+            call.message.chat.id,
+            "💎 Закрытие локаций в Genshin Impact\nВыберите регион:",
+            reply_markup=get_locations_keyboard()
+        )
+        add_message_to_delete(call.message.chat.id, msg.message_id)
+    elif platform == "steam":
         user_states[call.from_user.id] = {"state": "awaiting_steam_login"}
-        bot.send_message(call.message.chat.id, "Пожалуйста, введите ваш логин Steam:")
+        msg = bot.send_message(call.message.chat.id, "Пожалуйста, введите ваш логин Steam:")
+        add_message_to_delete(call.message.chat.id, msg.message_id)
     else:
         platform_name = dict(PLATFORMS)[platform]
-        bot.send_message(call.message.chat.id, f"Выберите позицию {platform_name}:", 
-                       reply_markup=get_items_keyboard(platform))
+        msg = bot.send_message(
+            call.message.chat.id,
+            f"Выберите позицию {platform_name}:",
+            reply_markup=get_items_keyboard(platform)
+        )
+        add_message_to_delete(call.message.chat.id, msg.message_id)
     
     bot.answer_callback_query(call.id)
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith("genshin_loc|||"))
+def genshin_location_handler(call):
+    clean_previous_messages(call.message.chat.id)
+    region_code = call.data.split("|||")[1]
+    
+    if region_code in LOCATION_REGIONS:
+        region_name = LOCATION_REGIONS[region_code]
+        msg = bot.send_message(
+            call.message.chat.id,
+            f"💎 {region_name} - доступные услуги:",
+            reply_markup=get_location_items_keyboard(region_code)
+        )
+        add_message_to_delete(call.message.chat.id, msg.message_id)
+    else:
+        bot.answer_callback_query(call.id, "Регион не найден")
+
+@bot.callback_query_handler(func=lambda call: call.data == "genshin_locations")
+def back_to_locations_handler(call):
+    clean_previous_messages(call.message.chat.id)
+    msg = bot.send_message(
+        call.message.chat.id,
+        "💎 Закрытие локаций в Genshin Impact\nВыберите регион:",
+        reply_markup=get_locations_keyboard()
+    )
+    add_message_to_delete(call.message.chat.id, msg.message_id)
+    bot.answer_callback_query(call.id)
+
+@bot.callback_query_handler(func=lambda call: call.data == "back_to_platforms")
+def back_to_platforms_handler(call):
+    clean_previous_messages(call.message.chat.id)
+    msg = bot.send_message(
+        call.message.chat.id,
+        "Добро пожаловать! Выберите платформу для покупки услуги:",
+        reply_markup=get_platforms_keyboard()
+    )
+    add_message_to_delete(call.message.chat.id, msg.message_id)
+    bot.answer_callback_query(call.id)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("item|||"))
+def item_selected_handler(call):
+    clean_previous_messages(call.message.chat.id)
+    parts = call.data.split("|||")
+    platform = parts[1]
+    name = parts[2]
+    
+    # Находим цену товара
+    price = None
+    if platform == "genshin_locations":
+        for region_items in LOCATION_ITEMS.values():
+            for item_name, item_price in region_items:
+                if item_name == name:
+                    price = item_price
+                    break
+            if price is not None:
+                break
+    else:
+        for item_name, item_price in PLATFORM_ITEMS.get(platform, []):
+            if item_name == name:
+                price = item_price
+                break
+    
+    if price is not None:
+        kb = types.InlineKeyboardMarkup()
+        kb.add(types.InlineKeyboardButton(
+            text="✅ Подтвердить заказ",
+            callback_data=f"confirm|||{platform}|||{name}"
+        ))
+        
+        # Кнопка назад
+        if platform == "genshin_locations":
+            # Находим регион для этого товара
+            region_code = None
+            for code, items in LOCATION_ITEMS.items():
+                for item_name, _ in items:
+                    if item_name == name:
+                        region_code = code
+                        break
+                if region_code:
+                    break
+            
+            if region_code:
+                kb.add(types.InlineKeyboardButton(
+                    text="◀️ Назад",
+                    callback_data=f"genshin_loc|||{region_code}"
+                ))
+        else:
+            kb.add(types.InlineKeyboardButton(
+                text="◀️ Назад",
+                callback_data=platform
+            ))
+        
+        msg = bot.send_message(
+            call.message.chat.id,
+            f"Вы выбрали: {name} ({price}₽)\n\nПодтвердите заказ:",
+            reply_markup=kb
+        )
+        add_message_to_delete(call.message.chat.id, msg.message_id)
+    else:
+        bot.answer_callback_query(call.id, "Товар не найден")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("confirm|||"))
+def confirm_order_handler(call):
+    clean_previous_messages(call.message.chat.id)
+    parts = call.data.split("|||")
+    platform = parts[1]
+    name = parts[2]
+    
+    # Находим цену товара
+    price = None
+    if platform == "genshin_locations":
+        for region_items in LOCATION_ITEMS.values():
+            for item_name, item_price in region_items:
+                if item_name == name:
+                    price = item_price
+                    break
+            if price is not None:
+                break
+    else:
+        for item_name, item_price in PLATFORM_ITEMS.get(platform, []):
+            if item_name == name:
+                price = item_price
+                break
+    
+    if price is not None:
+        username = call.from_user.username or 'Без username'
+        platform_name = dict(PLATFORMS).get(platform, platform)
+        
+        # Отправляем уведомление менеджеру
+        text = f"[НОВЫЙ ЗАКАЗ]\nПлатформа: {platform_name}\nПозиция: {name} ({price}₽)\nПользователь: @{username} ({call.from_user.id})"
+        bot.send_message(MANAGER_CHAT_ID, text)
+        
+        # Отправляем подтверждение пользователю
+        msg = bot.send_message(
+            call.message.chat.id,
+            f"✅ Заказ подтвержден!\n\n{name} ({price}₽)\n\nС вами свяжется менеджер для оплаты."
+        )
+        add_message_to_delete(call.message.chat.id, msg.message_id)
+    else:
+        bot.answer_callback_query(call.id, "Ошибка при подтверждении заказа")
+
+# Остальные обработчики для Steam (оставлены без изменений)
 @bot.callback_query_handler(func=lambda call: call.data == "steam")
 def back_to_steam_handler(call):
     try:
         user_states.pop(call.from_user.id, None)
-        bot.delete_message(call.message.chat.id, call.message.message_id)
+        clean_previous_messages(call.message.chat.id)
         platform_handler(call)
     except Exception as e:
         print(f"Error in back_to_steam_handler: {e}")
         bot.answer_callback_query(call.id, "Ошибка возврата. Попробуйте снова.")
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("genshin_loc|||"))
-def genshin_location_handler(call):
-    try:
-        region = call.data.split("|||")[1]
-        region_name = {
-            "mondstadt": "🌪 Мондштадт",
-            "liyue": "🪨 Ли Юэ",
-            "inazuma": "⚡️ Инадзума",
-            "sumeru": "🌿 Сумеру",
-            "fontaine": "🫵 Фонтейн",
-            "natlan": "🗿 Натлан",
-            "other_services": "❕ Дополнительные услуги"
-        }.get(region, region.capitalize())
-        
-        # Удаляем предыдущее сообщение
-        try:
-            bot.delete_message(call.message.chat.id, call.message.message_id)
-        except:
-            pass
-        
-        if region in LOCATION_ITEMS:
-            bot.send_message(call.message.chat.id, f"💎 {region_name} - доступные услуги:",
-                           reply_markup=get_locations_keyboard(region))
-        else:
-            bot.answer_callback_query(call.id, "Регион не найден")
-    except Exception as e:
-        print(f"Error in genshin_location_handler: {e}")
-        bot.answer_callback_query(call.id, "Ошибка навигации. Попробуйте снова.")
-
-@bot.callback_query_handler(func=lambda call: call.data == "genshin_locations")
-def back_to_locations_handler(call):
-    try:
-        # Удаляем предыдущее сообщение
-        try:
-            bot.delete_message(call.message.chat.id, call.message.message_id)
-        except:
-            pass
-        
-        bot.send_message(call.message.chat.id, PLATFORM_TEXTS["genshin_locations"],
-                       reply_markup=get_locations_keyboard())
-    except Exception as e:
-        print(f"Error in back_to_locations_handler: {e}")
-        bot.answer_callback_query(call.id, "Ошибка возврата. Попробуйте снова.")
-
-@bot.callback_query_handler(func=lambda call: call.data == "back_to_platforms")
-def back_to_platforms_handler(call):
-    try:
-        # Удаляем предыдущее сообщение
-        try:
-            bot.delete_message(call.message.chat.id, call.message.message_id)
-        except:
-            pass
-        
-        bot.send_message(call.message.chat.id, "Добро пожаловать! Выберите платформу для покупки услуги:",
-                      reply_markup=get_platforms_keyboard())
-    except Exception as e:
-        print(f"Error in back_to_platforms_handler: {e}")
-        bot.answer_callback_query(call.id, "Ошибка возврата. Попробуйте снова.")
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith("item|||"))
-def item_selected_handler(call):
-    try:
-        parts = call.data.split("|||")
-        if len(parts) != 3:
-            bot.answer_callback_query(call.id, "Ошибка обработки выбора")
-            return
-            
-        platform = parts[1]
-        name = parts[2]
-        
-        price = None
-        if platform == "genshin_locations":
-            for region in LOCATION_ITEMS.values():
-                for n, p in region:
-                    if n == name:
-                        price = p
-                        break
-        else:
-            for n, p in PLATFORM_ITEMS.get(platform, []):
-                if n == name:
-                    price = p
-                    break
-        
-        if price is not None:
-            kb = types.InlineKeyboardMarkup()
-            confirm_callback = f"confirm|||{platform}|||{name}"
-            kb.add(types.InlineKeyboardButton(text="✅ Подтвердить заказ", callback_data=confirm_callback))
-            
-            if platform == "genshin_locations":
-                region = get_region_by_name(name)
-                if region:
-                    kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data=f"genshin_loc|||{region}"))
-            else:
-                kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data=platform))
-            
-            # Удаляем предыдущее сообщение
-            try:
-                bot.delete_message(call.message.chat.id, call.message.message_id)
-            except:
-                pass
-            
-            bot.send_message(call.message.chat.id, f"Вы выбрали: {name} ({price}₽)\n\nПодтвердите заказ:",
-                           reply_markup=kb)
-        else:
-            bot.answer_callback_query(call.id, "Товар не найден")
-    except Exception as e:
-        print(f"Error in item_selected_handler: {e}")
-        bot.answer_callback_query(call.id, "Ошибка при обработке выбора")
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith("confirm|||"))
-def confirm_order_handler(call):
-    try:
-        parts = call.data.split("|||")
-        if len(parts) != 3:
-            bot.answer_callback_query(call.id, "Ошибка подтверждения")
-            return
-            
-        platform = parts[1]
-        name = parts[2]
-        
-        price = None
-        if platform == "genshin_locations":
-            for region in LOCATION_ITEMS.values():
-                for n, p in region:
-                    if n == name:
-                        price = p
-                        break
-        else:
-            for n, p in PLATFORM_ITEMS.get(platform, []):
-                if n == name:
-                    price = p
-                    break
-        
-        username = call.from_user.username or 'Без username'
-        platform_name = dict(PLATFORMS).get(platform, platform)
-        
-        text = f"[НОВЫЙ ЗАКАЗ]\nПлатформа: {platform_name}\nПозиция: {name} ({price}₽)\nПользователь: @{username} ({call.from_user.id})"
-        bot.send_message(MANAGER_CHAT_ID, text)
-        
-        # Удаляем предыдущее сообщение
-        try:
-            bot.delete_message(call.message.chat.id, call.message.message_id)
-        except:
-            pass
-        
-        bot.send_message(call.message.chat.id, f"✅ Заказ подтвержден!\n\n{name} ({price}₽)\n\nС вами свяжется менеджер для оплаты.")
-        
-    except Exception as e:
-        print(f"Error in confirm_order_handler: {e}")
-        bot.answer_callback_query(call.id, "Ошибка при подтверждении заказа")
-
 @bot.message_handler(func=lambda message: user_states.get(message.from_user.id, {}).get("state") == "awaiting_steam_login")
 def steam_login_handler(message):
+    clean_previous_messages(message.chat.id)
     login = message.text.strip()
     user_states[message.from_user.id] = {"state": "awaiting_steam_amount", "login": login}
-    bot.send_message(message.chat.id, "Введите сумму пополнения в рублях (от 100 до 25000):")
+    msg = bot.send_message(message.chat.id, "Введите сумму пополнения в рублях (от 100 до 25000):")
+    add_message_to_delete(message.chat.id, msg.message_id)
 
 @bot.message_handler(func=lambda message: user_states.get(message.from_user.id, {}).get("state") == "awaiting_steam_amount")
 def steam_amount_handler(message):
+    clean_previous_messages(message.chat.id)
     try:
         amount = float(message.text.strip().replace(',', '.'))
         if amount < 100 or amount > 25000:
-            bot.send_message(message.chat.id, "Сумма должна быть от 100 до 25000 рублей. Попробуйте снова.")
+            msg = bot.send_message(message.chat.id, "Сумма должна быть от 100 до 25000 рублей. Попробуйте снова.")
+            add_message_to_delete(message.chat.id, msg.message_id)
             return
+        
         commission = round(amount * 0.08, 2)
         total = round(amount + commission, 2)
         login = user_states[message.from_user.id]["login"]
+        
         user_states[message.from_user.id] = {
             "state": "confirm_steam",
             "login": login,
@@ -465,17 +399,24 @@ def steam_amount_handler(message):
             "commission": commission,
             "total": total
         }
+        
         kb = types.InlineKeyboardMarkup()
         kb.add(types.InlineKeyboardButton(text="✅ Подтвердить", callback_data="confirm_steam"))
         kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data="steam"))
-        bot.send_message(message.chat.id, 
-                        f"Логин: {login}\nСумма пополнения: {amount}₽\nКомиссия (8%): {commission}₽\nИтого к оплате: {total}₽\n\nПодтвердить заказ?",
-                        reply_markup=kb)
+        
+        msg = bot.send_message(
+            message.chat.id,
+            f"Логин: {login}\nСумма пополнения: {amount}₽\nКомиссия (8%): {commission}₽\nИтого к оплате: {total}₽\n\nПодтвердить заказ?",
+            reply_markup=kb
+        )
+        add_message_to_delete(message.chat.id, msg.message_id)
     except ValueError:
-        bot.send_message(message.chat.id, "Пожалуйста, введите корректную сумму в рублях.")
+        msg = bot.send_message(message.chat.id, "Пожалуйста, введите корректную сумму в рублях.")
+        add_message_to_delete(message.chat.id, msg.message_id)
 
 @bot.callback_query_handler(func=lambda call: call.data == "confirm_steam")
 def confirm_steam_handler(call):
+    clean_previous_messages(call.message.chat.id)
     try:
         data = user_states.get(call.from_user.id, {})
         login = data.get("login")
@@ -484,16 +425,16 @@ def confirm_steam_handler(call):
         total = data.get("total")
         username = call.from_user.username or 'Без username'
         
+        # Отправляем уведомление менеджеру
         text = f"[НОВЫЙ ЗАКАЗ]\nSteam\nЛогин: {login}\nСумма: {amount}₽\nКомиссия: {commission}₽\nИтого: {total}₽\nПользователь: @{username} ({call.from_user.id})"
         bot.send_message(MANAGER_CHAT_ID, text)
         
-        # Удаляем предыдущее сообщение
-        try:
-            bot.delete_message(call.message.chat.id, call.message.message_id)
-        except:
-            pass
-        
-        bot.send_message(call.message.chat.id, f"✅ Заказ подтвержден!\n\nЛогин: {login}\nСумма: {amount}₽\nИтого: {total}₽\n\nС вами свяжется менеджер для оплаты.")
+        # Отправляем подтверждение пользователю
+        msg = bot.send_message(
+            call.message.chat.id,
+            f"✅ Заказ подтвержден!\n\nЛогин: {login}\nСумма: {amount}₽\nИтого: {total}₽\n\nС вами свяжется менеджер для оплаты."
+        )
+        add_message_to_delete(call.message.chat.id, msg.message_id)
         
         user_states.pop(call.from_user.id, None)
     except Exception as e:
