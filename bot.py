@@ -33,45 +33,24 @@ GENSHIN_ITEMS = [
 
 # Добавляю определение PLATFORM_ITEMS для всех платформ, кроме genshin_locations
 PLATFORM_ITEMS = {
-    "genshin_price": GENSHIN_ITEMS,
-    "steam": [],  # Для Steam отдельная логика
+    "genshin_price": [
+        ("Гимн", 700), ("Хор", 1410), ("Х65", 70), ("Х300", 310), ("Х980", 980), ("Х1980", 1850), ("Х3280", 2900), ("Х6480", 5800), ("Карточка", 310)
+    ],
+    "steam": [],
     "hsr_price": [
-        ("60 звездного нефрита", 70),
-        ("300 звездного нефрита", 310),
-        ("980 звездного нефрита", 980),
-        ("1980 звездного нефрита", 1850),
-        ("3280 звездного нефрита", 2900),
-        ("6480 звездного нефрита", 5800),
-        ("Пакет экспресс-пасс", 310)
+        ("Слава безымянных", 800), ("Честь безымянных", 1600), ("Х300", 350), ("Х980", 1380), ("Х1980", 2150), ("Х3280", 3510), ("Х6480", 7050), ("Календарь", 350)
     ],
     "zzz_price": [
-        ("60 полярных кристаллов", 70),
-        ("300 полярных кристаллов", 310),
-        ("980 полярных кристаллов", 980),
-        ("1980 полярных кристаллов", 1850),
-        ("3280 полярных кристаллов", 2900),
-        ("6480 полярных кристаллов", 5800),
-        ("Пакет экспресс-пасс", 310)
+        ("Фонд Риду продвинутый", 810), ("Фонд Риду премиальный", 1610), ("Х300", 355), ("Х980", 1110), ("Х1980", 2180), ("Х3280", 3650), ("Х6480", 7100), ("Набор", 355)
     ],
     "roblox_price": [
-        ("80 Robux", 100),
-        ("400 Robux", 500),
-        ("800 Robux", 1000),
-        ("1700 Robux", 2000)
+        ("Х500", 470), ("Х1000", 910), ("Х2000", 1810), ("Х5250", 4400), ("Х11000", 8800), ("Х24000", 18000)
     ],
     "clash_price": [
-        ("80 гемов", 100),
-        ("500 гемов", 500),
-        ("1200 гемов", 1000),
-        ("2500 гемов", 2000)
+        ("Пасс рояль", 94), ("Х500", 395), ("Х1200", 795), ("Х2500", 1590), ("Х6500", 3985), ("Х14000", 7995), ("Х80", 75)
     ],
     "brawl_price": [
-        ("30 гемов", 100),
-        ("80 гемов", 250),
-        ("170 гемов", 500),
-        ("360 гемов", 1000),
-        ("950 гемов", 2500),
-        ("2000 гемов", 5000)
+        ("Бравл Пасс", 500), ("Улучшение до плюс", 315), ("Бравл Пасс плюс", 770), ("Х30", 155), ("Х80", 385), ("Х170", 780), ("Х360", 1580), ("Х950", 3900), ("Х2000", 7800)
     ]
 }
 
@@ -113,44 +92,25 @@ LOCATION_REGIONS = {
 
 LOCATION_ITEMS = {
     "mondstadt": [
-        ("Мондштадт (100%)", 850),
-        ("Драконий хребет (100%)", 700),
-        ("Мондштадт + Драконий хребет (100%)", 1300)
+        ("Мондштадт (100%)", 850), ("Драконий хребет (100%)", 700), ("Мондштадт/Драконий хребет (100%)", 1300)
     ],
     "liyue": [
-        ("Ли Юэ (100%)", 2300),
-        ("Разлом (100%)", 1000),
-        ("Ли Юэ + Разлом (100%)", 3300),
-        ("Долина Чэньюй (100%)", 2200)
+        ("Ли Юэ (100%)", 2300), ("Разлом (100%)", 1000), ("Ли Юэ/Разлом (100%)", 3300), ("Долина Чэньюй (100%)", 2200)
     ],
     "inazuma": [
-        ("Инадзума (100%)", 2000),
-        ("Энканомия (100%)", 1200),
-        ("Инадзума + Энканомия (100%)", 3200)
+        ("Инадзума (100%)", 2000), ("Энканомия (100%)", 1200), ("Инадзума/Энканомия (100%)", 3200)
     ],
     "sumeru": [
-        ("Сумеру (100%)", 2200),
-        ("Пустыня Колоннад (100%)", 1350),
-        ("Пустыня Хадрамавет (100%)", 1800),
-        ("Царство Фаракхерт (100%)", 1200),
-        ("Все пустыни Сумеру (100%)", 4350),
-        ("Сумеру (тропики + пустыня) (100%)", 6500)
+        ("Сумеру (100%)", 2200), ("Пустыня Колоннад (100%)", 1350), ("Пустыня Хадрамавет (100%)", 1800), ("Царство Фаракхерт (100%)", 1200), ("Все пустыни Сумеру (100%)", 4350), ("Сумеру тропики и пустыня (100%)", 6500)
     ],
     "fontaine": [
-        ("Кур Де Фонтейн (100%)", 1800),
-        ("Институт Фонтейна (100%)", 1700),
-        ("Лес Эриний (100%)", 2100),
-        ("Древнее Море (100%)", 1300),
-        ("Весь Фонтейн (100%)", 6400)
+        ("Кур Де Фонтейн (100%)", 1800), ("Институт Фонтейна (100%)", 1700), ("Лес Эриний (100%)", 2100), ("Древнее Море (100%)", 1300), ("Весь Фонтейн (100%)", 6400)
     ],
     "natlan": [
-        ("Натлан 5.0 (100%)", 3000),
-        ("Очканатлан (100%)", 1800),
-        ("Натлан 5.5 (100%)", 2250)
+        ("Натлан 5.0 (100%)", 3000), ("Очканатлан (100%)", 1800), ("Натлан 5.5 (100%)", 2250)
     ],
     "other_services": [
-        ("Квест Аранар", 1800),
-        ("Уход за аккаунтом (месяц)", 3000)
+        ("Квест Аранар", 1800), ("Уход за аккаунтом (месяц)", 3000)
     ]
 }
 
@@ -206,145 +166,7 @@ def get_all_users():
     return users
 
 # --- Работа с ценами ---
-def set_price_db(key, price):
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('INSERT OR REPLACE INTO prices (key, price) VALUES (?, ?)', (key, price))
-    conn.commit()
-    conn.close()
-
-def get_price_db(key):
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('SELECT price FROM prices WHERE key = ?', (key,))
-    row = c.fetchone()
-    conn.close()
-    if row:
-        return row[0]
-    return None
-
-# --- Вспомогательные функции ---
-def is_admin(user_id):
-    return user_id in ADMIN_IDS
-
-def get_price(platform, idx, region_code=None):
-    if platform == 'genshin_locations' and region_code is not None:
-        key = f"{region_code}_{idx}"
-        db_price = get_price_db(key)
-        if db_price is not None:
-            return db_price
-        return LOCATION_ITEMS[region_code][idx][1]
-    else:
-        key = f"{platform}_{idx}"
-        db_price = get_price_db(key)
-        if db_price is not None:
-            return db_price
-        return PLATFORM_ITEMS[platform][idx][1]
-
-def set_price(platform, idx, new_price, region_code=None):
-    if platform == 'genshin_locations' and region_code is not None:
-        key = f"{region_code}_{idx}"
-        set_price_db(key, new_price)
-    else:
-        key = f"{platform}_{idx}"
-        set_price_db(key, new_price)
-
-# --- FSM для смены цены ---
-price_change_state = {}
-
-@bot.message_handler(commands=['setprice'])
-def setprice_start(message):
-    if not is_admin(message.from_user.id):
-        bot.reply_to(message, "Нет доступа.")
-        return
-    kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    for callback, name in PLATFORMS:
-        kb.add(types.KeyboardButton(name))
-    bot.send_message(message.chat.id, "Выберите платформу:", reply_markup=kb)
-    price_change_state[message.from_user.id] = {'step': 'platform'}
-
-@bot.message_handler(func=lambda m: price_change_state.get(m.from_user.id, {}).get('step') == 'platform')
-def setprice_choose_platform(message):
-    platform = None
-    for code, name in PLATFORMS:
-        if message.text == name:
-            platform = code
-            break
-    if not platform:
-        bot.reply_to(message, "Платформа не найдена. Попробуйте снова.")
-        return
-    price_change_state[message.from_user.id] = {'step': 'item', 'platform': platform}
-    kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    if platform == 'genshin_locations':
-        for region_code, region_name in LOCATION_REGIONS.items():
-            kb.add(types.KeyboardButton(region_name))
-        bot.send_message(message.chat.id, "Выберите регион:", reply_markup=kb)
-    else:
-        for idx, (name, price) in enumerate(PLATFORM_ITEMS[platform]):
-            kb.add(types.KeyboardButton(f"{name} ({get_price(platform, idx)}₽)"))
-        bot.send_message(message.chat.id, "Выберите позицию:", reply_markup=kb)
-
-@bot.message_handler(func=lambda m: price_change_state.get(m.from_user.id, {}).get('step') == 'item')
-def setprice_choose_item(message):
-    state = price_change_state[message.from_user.id]
-    platform = state['platform']
-    if platform == 'genshin_locations':
-        region_code = None
-        for code, name in LOCATION_REGIONS.items():
-            if message.text == name:
-                region_code = code
-                break
-        if not region_code:
-            bot.reply_to(message, "Регион не найден. Попробуйте снова.")
-            return
-        price_change_state[message.from_user.id] = {'step': 'loc_item', 'platform': platform, 'region_code': region_code}
-        kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        for idx, (name, price) in enumerate(LOCATION_ITEMS[region_code]):
-            kb.add(types.KeyboardButton(f"{name} ({get_price(platform, idx, region_code)}₽)"))
-        bot.send_message(message.chat.id, "Выберите позицию:", reply_markup=kb)
-    else:
-        idx = None
-        for i, (name, price) in enumerate(PLATFORM_ITEMS[platform]):
-            if message.text.startswith(name):
-                idx = i
-                break
-        if idx is None:
-            bot.reply_to(message, "Позиция не найдена. Попробуйте снова.")
-            return
-        price_change_state[message.from_user.id] = {'step': 'new_price', 'platform': platform, 'idx': idx}
-        bot.send_message(message.chat.id, "Введите новую цену:", reply_markup=types.ReplyKeyboardRemove())
-
-@bot.message_handler(func=lambda m: price_change_state.get(m.from_user.id, {}).get('step') == 'loc_item')
-def setprice_choose_loc_item(message):
-    state = price_change_state[message.from_user.id]
-    region_code = state['region_code']
-    idx = None
-    for i, (name, price) in enumerate(LOCATION_ITEMS[region_code]):
-        if message.text.startswith(name):
-            idx = i
-            break
-    if idx is None:
-        bot.reply_to(message, "Позиция не найдена. Попробуйте снова.")
-        return
-    price_change_state[message.from_user.id] = {'step': 'new_price', 'platform': 'genshin_locations', 'region_code': region_code, 'idx': idx}
-    bot.send_message(message.chat.id, "Введите новую цену:", reply_markup=types.ReplyKeyboardRemove())
-
-@bot.message_handler(func=lambda m: price_change_state.get(m.from_user.id, {}).get('step') == 'new_price')
-def setprice_set_new_price(message):
-    state = price_change_state[message.from_user.id]
-    try:
-        new_price = int(message.text.strip())
-        if new_price <= 0:
-            raise ValueError
-    except:
-        bot.reply_to(message, "Введите корректную цену (целое число > 0)")
-        return
-    platform = state['platform']
-    idx = state['idx']
-    region_code = state.get('region_code')
-    set_price(platform, idx, new_price, region_code)
-    bot.send_message(message.chat.id, f"Цена успешно изменена!", reply_markup=types.ReplyKeyboardRemove())
-    price_change_state.pop(message.from_user.id, None)
+# Удаляю функции set_price_db, get_price_db, set_price, get_price, price_change_state и все message_handler с setprice
 
 # --- Команда рассылки ---
 broadcast_state = {}
@@ -406,7 +228,7 @@ def get_items_keyboard(platform):
     for idx, (name, value) in enumerate(items):
         if isinstance(value, int):
             key = f"{platform}_{idx}"
-            price = get_price(platform, idx)
+            price = value # Возвращаю цену напрямую
             callback_data = f"item|||{key}"
             kb.add(types.InlineKeyboardButton(text=f"{name} ({price}₽)", callback_data=callback_data))
     kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_platforms"))
@@ -430,7 +252,7 @@ def get_location_items_keyboard(region_code):
     items = LOCATION_ITEMS.get(region_code, [])
     for idx, (name, price) in enumerate(items):
         key = f"{region_code}_{idx}"
-        actual_price = get_price('genshin_locations', idx, region_code)
+        actual_price = price # Возвращаю цену напрямую
         kb.add(types.InlineKeyboardButton(
             text=f"{name} - {actual_price}₽",
             callback_data=f"item|||{key}"
@@ -551,7 +373,7 @@ def item_selected_handler(call):
         except (IndexError, ValueError):
             bot.answer_callback_query(call.id, "Ошибка позиции")
             return
-        price = get_price(platform, idx, region_code)
+        price = LOCATION_ITEMS[region_code][idx][1] # Возвращаю цену напрямую
     elif key in PLATFORM_ITEM_KEYS:
         platform, name, _ = PLATFORM_ITEM_KEYS[key]
         try:
@@ -559,7 +381,7 @@ def item_selected_handler(call):
         except (IndexError, ValueError):
             bot.answer_callback_query(call.id, "Ошибка позиции")
             return
-        price = get_price(platform, idx)
+        price = PLATFORM_ITEMS[platform][idx][1] # Возвращаю цену напрямую
     else:
         bot.answer_callback_query(call.id, "Товар не найден")
         return
@@ -602,7 +424,7 @@ def confirm_order_handler(call):
         except (IndexError, ValueError):
             bot.answer_callback_query(call.id, "Ошибка позиции")
             return
-        price = get_price(platform, idx, region_code)
+        price = LOCATION_ITEMS[region_code][idx][1] # Возвращаю цену напрямую
     elif key in PLATFORM_ITEM_KEYS:
         platform, name, _ = PLATFORM_ITEM_KEYS[key]
         try:
@@ -610,7 +432,7 @@ def confirm_order_handler(call):
         except (IndexError, ValueError):
             bot.answer_callback_query(call.id, "Ошибка позиции")
             return
-        price = get_price(platform, idx)
+        price = PLATFORM_ITEMS[platform][idx][1] # Возвращаю цену напрямую
     else:
         bot.answer_callback_query(call.id, "Ошибка при подтверждении заказа")
         return
