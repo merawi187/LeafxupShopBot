@@ -249,20 +249,7 @@ def start_handler(message):
 def platform_handler(call):
     platform = call.data
     
-    if platform == "genshin_locations":
-        try:
-            bot.edit_message_text(
-                chat_id=call.message.chat.id,
-                message_id=call.message.message_id,
-                text=PLATFORM_TEXTS["genshin_locations"],
-                reply_markup=get_locations_keyboard()
-            )
-        except:
-            bot.send_message(call.message.chat.id, PLATFORM_TEXTS["genshin_locations"], 
-                           reply_markup=get_locations_keyboard())
-        bot.answer_callback_query(call.id)
-        return
-    
+    # Сначала отправляем фото
     photo_info = PLATFORM_PHOTOS.get(platform)
     if photo_info:
         filename, caption = photo_info
@@ -272,22 +259,25 @@ def platform_handler(call):
         except Exception as e:
             bot.send_message(call.message.chat.id, f"Не удалось отправить фото прайса для {caption}. Обратитесь к менеджеру.")
     
+    # Удаляем предыдущее сообщение
+    try:
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+    except:
+        pass
+    
+    if platform == "genshin_locations":
+        bot.send_message(call.message.chat.id, PLATFORM_TEXTS["genshin_locations"], 
+                       reply_markup=get_locations_keyboard())
+        bot.answer_callback_query(call.id)
+        return
+    
     if platform == "steam":
         user_states[call.from_user.id] = {"state": "awaiting_steam_login"}
         bot.send_message(call.message.chat.id, "Пожалуйста, введите ваш логин Steam:")
     else:
         platform_name = dict(PLATFORMS)[platform]
-        time.sleep(0.5)
-        try:
-            bot.edit_message_text(
-                chat_id=call.message.chat.id,
-                message_id=call.message.message_id,
-                text=f"Выберите позицию {platform_name}:",
-                reply_markup=get_items_keyboard(platform)
-            )
-        except:
-            bot.send_message(call.message.chat.id, f"Выберите позицию {platform_name}:", 
-                           reply_markup=get_items_keyboard(platform))
+        bot.send_message(call.message.chat.id, f"Выберите позицию {platform_name}:", 
+                       reply_markup=get_items_keyboard(platform))
     
     bot.answer_callback_query(call.id)
 
@@ -315,17 +305,15 @@ def genshin_location_handler(call):
             "other_services": "❕ Дополнительные услуги"
         }.get(region, region.capitalize())
         
+        # Удаляем предыдущее сообщение
+        try:
+            bot.delete_message(call.message.chat.id, call.message.message_id)
+        except:
+            pass
+        
         if region in LOCATION_ITEMS:
-            try:
-                bot.edit_message_text(
-                    chat_id=call.message.chat.id,
-                    message_id=call.message.message_id,
-                    text=f"💎 {region_name} - доступные услуги:",
-                    reply_markup=get_locations_keyboard(region)
-                )
-            except:
-                bot.send_message(call.message.chat.id, f"💎 {region_name} - доступные услуги:",
-                               reply_markup=get_locations_keyboard(region))
+            bot.send_message(call.message.chat.id, f"💎 {region_name} - доступные услуги:",
+                           reply_markup=get_locations_keyboard(region))
         else:
             bot.answer_callback_query(call.id, "Регион не найден")
     except Exception as e:
@@ -335,36 +323,32 @@ def genshin_location_handler(call):
 @bot.callback_query_handler(func=lambda call: call.data == "genshin_locations")
 def back_to_locations_handler(call):
     try:
-        bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text=PLATFORM_TEXTS["genshin_locations"],
-            reply_markup=get_locations_keyboard()
-        )
-    except:
+        # Удаляем предыдущее сообщение
         try:
-            bot.send_message(call.message.chat.id, PLATFORM_TEXTS["genshin_locations"],
-                           reply_markup=get_locations_keyboard())
-        except Exception as e:
-            print(f"Error in back_to_locations_handler: {e}")
-            bot.answer_callback_query(call.id, "Ошибка возврата. Попробуйте снова.")
+            bot.delete_message(call.message.chat.id, call.message.message_id)
+        except:
+            pass
+        
+        bot.send_message(call.message.chat.id, PLATFORM_TEXTS["genshin_locations"],
+                       reply_markup=get_locations_keyboard())
+    except Exception as e:
+        print(f"Error in back_to_locations_handler: {e}")
+        bot.answer_callback_query(call.id, "Ошибка возврата. Попробуйте снова.")
 
 @bot.callback_query_handler(func=lambda call: call.data == "back_to_platforms")
 def back_to_platforms_handler(call):
     try:
-        bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text="Добро пожаловать! Выберите платформу для покупки услуги:",
-            reply_markup=get_platforms_keyboard()
-        )
-    except:
+        # Удаляем предыдущее сообщение
         try:
-            bot.send_message(call.message.chat.id, "Добро пожаловать! Выберите платформу для покупки услуги:",
-                          reply_markup=get_platforms_keyboard())
-        except Exception as e:
-            print(f"Error in back_to_platforms_handler: {e}")
-            bot.answer_callback_query(call.id, "Ошибка возврата. Попробуйте снова.")
+            bot.delete_message(call.message.chat.id, call.message.message_id)
+        except:
+            pass
+        
+        bot.send_message(call.message.chat.id, "Добро пожаловать! Выберите платформу для покупки услуги:",
+                      reply_markup=get_platforms_keyboard())
+    except Exception as e:
+        print(f"Error in back_to_platforms_handler: {e}")
+        bot.answer_callback_query(call.id, "Ошибка возврата. Попробуйте снова.")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("item|||"))
 def item_selected_handler(call):
@@ -402,16 +386,14 @@ def item_selected_handler(call):
             else:
                 kb.add(types.InlineKeyboardButton(text="◀️ Назад", callback_data=platform))
             
+            # Удаляем предыдущее сообщение
             try:
-                bot.edit_message_text(
-                    chat_id=call.message.chat.id,
-                    message_id=call.message.message_id,
-                    text=f"Вы выбрали: {name} ({price}₽)\n\nПодтвердите заказ:",
-                    reply_markup=kb
-                )
+                bot.delete_message(call.message.chat.id, call.message.message_id)
             except:
-                bot.send_message(call.message.chat.id, f"Вы выбрали: {name} ({price}₽)\n\nПодтвердите заказ:",
-                               reply_markup=kb)
+                pass
+            
+            bot.send_message(call.message.chat.id, f"Вы выбрали: {name} ({price}₽)\n\nПодтвердите заказ:",
+                           reply_markup=kb)
         else:
             bot.answer_callback_query(call.id, "Товар не найден")
     except Exception as e:
@@ -448,14 +430,13 @@ def confirm_order_handler(call):
         text = f"[НОВЫЙ ЗАКАЗ]\nПлатформа: {platform_name}\nПозиция: {name} ({price}₽)\nПользователь: @{username} ({call.from_user.id})"
         bot.send_message(MANAGER_CHAT_ID, text)
         
+        # Удаляем предыдущее сообщение
         try:
-            bot.edit_message_text(
-                chat_id=call.message.chat.id,
-                message_id=call.message.message_id,
-                text=f"✅ Заказ подтвержден!\n\n{name} ({price}₽)\n\nС вами свяжется менеджер для оплаты."
-            )
+            bot.delete_message(call.message.chat.id, call.message.message_id)
         except:
-            bot.send_message(call.message.chat.id, f"✅ Заказ подтвержден!\n\n{name} ({price}₽)\n\nС вами свяжется менеджер для оплаты.")
+            pass
+        
+        bot.send_message(call.message.chat.id, f"✅ Заказ подтвержден!\n\n{name} ({price}₽)\n\nС вами свяжется менеджер для оплаты.")
         
     except Exception as e:
         print(f"Error in confirm_order_handler: {e}")
@@ -506,36 +487,18 @@ def confirm_steam_handler(call):
         text = f"[НОВЫЙ ЗАКАЗ]\nSteam\nЛогин: {login}\nСумма: {amount}₽\nКомиссия: {commission}₽\nИтого: {total}₽\nПользователь: @{username} ({call.from_user.id})"
         bot.send_message(MANAGER_CHAT_ID, text)
         
+        # Удаляем предыдущее сообщение
         try:
-            bot.edit_message_text(
-                chat_id=call.message.chat.id,
-                message_id=call.message.message_id,
-                text=f"✅ Заказ подтвержден!\n\nЛогин: {login}\nСумма: {amount}₽\nИтого: {total}₽\n\nС вами свяжется менеджер для оплаты."
-            )
+            bot.delete_message(call.message.chat.id, call.message.message_id)
         except:
-            bot.send_message(call.message.chat.id, f"✅ Заказ подтвержден!\n\nЛогин: {login}\nСумма: {amount}₽\nИтого: {total}₽\n\nС вами свяжется менеджер для оплаты.")
+            pass
+        
+        bot.send_message(call.message.chat.id, f"✅ Заказ подтвержден!\n\nЛогин: {login}\nСумма: {amount}₽\nИтого: {total}₽\n\nС вами свяжется менеджер для оплаты.")
         
         user_states.pop(call.from_user.id, None)
     except Exception as e:
         print(f"Error in confirm_steam_handler: {e}")
         bot.answer_callback_query(call.id, "Ошибка при подтверждении заказа")
 
-@bot.message_handler(func=lambda message: True)
-def fallback_handler(message):
-    bot.send_message(message.chat.id, "Пожалуйста, выберите платформу через меню /start.")
-
-def run_flask():
-    app = Flask(__name__)
-
-    @app.route('/')
-    def index():
-        return "OK"
-
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
-
-if __name__ == "__main__":
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.daemon = True
-    flask_thread.start()
+if __name__ == '__main__':
     bot.polling(none_stop=True)
